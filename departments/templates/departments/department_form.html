@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Yeni Departman — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-5">
+
+        <h1 class="h4 mb-4">
+            <i class="bi bi-plus-circle me-2"></i>Yeni Departman Ekle
+        </h1>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Departman Adı -->
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Departman Adı</label>
+                        <input type="text"
+                               name="name"
+                               id="id_name"
+                               class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                               value="{{ form.name.value|default:'' }}"
+                               placeholder="ör: Bilgi Teknolojileri"
+                               required>
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Açıklama -->
+                    <div class="mb-4">
+                        <label for="id_description" class="form-label">Açıklama <small class="text-muted">(opsiyonel)</small></label>
+                        <textarea name="description"
+                                  id="id_description"
+                                  class="form-control"
+                                  rows="3"
+                                  placeholder="Departmanın sorumluluk alanı...">{{ form.description.value|default:'' }}</textarea>
+                    </div>
+
+                    <!-- Butonlar -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-check-lg me-1"></i>Kaydet
+                        </button>
+                        <a href="{% url 'departments:department_list' %}" class="btn btn-outline-secondary">İptal</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

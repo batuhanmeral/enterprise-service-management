@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Bilet Transfer — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+
+        <h1 class="h4 mb-4">
+            <i class="bi bi-send me-2"></i>Bileti Transfer Et
+        </h1>
+
+        <!-- Bilet özeti -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="mb-1">{{ ticket.subject }}</h6>
+                        <small class="text-muted">Bilet #{{ ticket.pk }}</small>
+                    </div>
+                    <div>
+                        {% if ticket.status == 'OPEN' %}
+                            <span class="badge bg-primary">Açık</span>
+                        {% elif ticket.status == 'IN_PROGRESS' %}
+                            <span class="badge bg-warning text-dark">İşlemde</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">Mevcut Departman:</small>
+                    <span class="fw-medium">{{ ticket.department.name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transfer formu -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_department" class="form-label">Yeni Departman</label>
+                        <select name="department"
+                                id="id_department"
+                                class="form-select"
+                                required>
+                            <option value="">Departman seçin...</option>
+                            {% for dept in departments %}
+                                <option value="{{ dept.pk }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="id_category" class="form-label">Yeni Kategori <small class="text-muted">(opsiyonel)</small></label>
+                        <select name="category"
+                                id="id_category"
+                                class="form-select"
+                                disabled>
+                            <option value="">Önce departman seçin...</option>
+                        </select>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-send me-1"></i>Transfer Et
+                        </button>
+                        <a href="{% url 'tickets:ticket_detail' ticket.pk %}" class="btn btn-outline-secondary">İptal</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- AJAX: Departman değişince kategorileri getir -->
+<script>
+    const deptSelect = document.getElementById('id_department');
+    const catSelect = document.getElementById('id_category');
+
+    deptSelect.addEventListener('change', function () {
+        const deptId = this.value;
+        catSelect.innerHTML = '<option value="">Yükleniyor...</option>';
+        catSelect.disabled = true;
+
+        if (!deptId) {
+            catSelect.innerHTML = '<option value="">Önce departman seçin...</option>';
+            return;
+        }
+
+        fetch(`/departments/${deptId}/categories/`)
+            .then(res => res.json())
+            .then(categories => {
+                catSelect.innerHTML = '<option value="">Kategori seçin...</option>';
+                categories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.id;
+                    opt.textContent = cat.name;
+                    catSelect.appendChild(opt);
+                });
+                catSelect.disabled = categories.length === 0;
+                if (categories.length === 0) {
+                    catSelect.innerHTML = '<option value="">Bu departmanda kategori yok</option>';
+                }
+            })
+            .catch(() => {
+                catSelect.innerHTML = '<option value="">Kategoriler yüklenemedi</option>';
+            });
+    });
+</script>
+{% endblock %}

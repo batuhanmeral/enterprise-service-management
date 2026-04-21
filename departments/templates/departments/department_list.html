@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Departmanlar — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h4 mb-0">
+        <i class="bi bi-building me-2"></i>Departmanlar
+    </h1>
+    <a href="{% url 'departments:department_create' %}" class="btn btn-dark">
+        <i class="bi bi-plus-lg me-1"></i>Yeni Departman Ekle
+    </a>
+</div>
+
+{% if departments %}
+    <div class="row g-3">
+        {% for dept in departments %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title mb-1">{{ dept.name }}</h5>
+                        {% if dept.description %}
+                            <p class="card-text text-muted small mb-3">{{ dept.description }}</p>
+                        {% endif %}
+                        <div class="d-flex gap-3 text-muted small">
+                            <span>
+                                <i class="bi bi-tag me-1"></i>{{ dept.categories.count }} kategori
+                            </span>
+                            <span>
+                                <i class="bi bi-people me-1"></i>{{ dept.personnel.count }} personel
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0 pt-0">
+                        <small class="text-muted">
+                            Oluşturulma: {{ dept.created_at|date:"d.m.Y" }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-building display-4 d-block mb-3"></i>
+        <p>Henüz departman bulunmuyor.</p>
+        <a href="{% url 'departments:department_create' %}" class="btn btn-outline-dark btn-sm">
+            İlk departmanı ekle
+        </a>
+    </div>
+{% endif %}
+{% endblock %}

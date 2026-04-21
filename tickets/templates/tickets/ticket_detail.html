@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Bilet #{{ ticket.pk }} — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="row">
+
+    <!-- Sol: Bilet bilgileri -->
+    <div class="col-lg-8">
+
+        <!-- Başlık ve durum -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <h1 class="h4 mb-1">{{ ticket.subject }}</h1>
+                <small class="text-muted">Bilet #{{ ticket.pk }} · {{ ticket.created_at|date:"d.m.Y H:i" }}</small>
+            </div>
+            <div>
+                {% if ticket.status == 'OPEN' %}
+                    <span class="badge bg-primary fs-6">Açık</span>
+                {% elif ticket.status == 'IN_PROGRESS' %}
+                    <span class="badge bg-warning text-dark fs-6">İşlemde</span>
+                {% elif ticket.status == 'CLOSED' %}
+                    <span class="badge bg-secondary fs-6">Kapalı</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Mesaj -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Mesaj</h6>
+                <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.message }}</p>
+            </div>
+        </div>
+
+        <!-- Dosya eki -->
+        {% if ticket.attachment %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body py-3">
+                    <h6 class="text-muted mb-2">Dosya Eki</h6>
+                    <a href="{{ ticket.attachment.url }}" class="text-decoration-none" target="_blank">
+                        <i class="bi bi-paperclip me-1"></i>{{ ticket.attachment.name|cut:"ticket_attachments/" }}
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Çözüm notu (sadece kapalı biletlerde) -->
+        {% if ticket.status == 'CLOSED' and ticket.resolution_note %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">
+                        <i class="bi bi-check-circle me-1 text-success"></i>Çözüm Notu
+                    </h6>
+                    <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.resolution_note }}</p>
+                    {% if ticket.closed_at %}
+                        <small class="text-muted d-block mt-2">Kapatılma: {{ ticket.closed_at|date:"d.m.Y H:i" }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Üstlen butonu (AGENT/MANAGER için, sadece OPEN) -->
+        {% if ticket.status == 'OPEN' and user.role == 'AGENT' or ticket.status == 'OPEN' and user.role == 'MANAGER' %}
+            {% if user.department == ticket.department %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Bu bilet henüz üstlenilmemiş. Üzerinize almak ister misiniz?</p>
+                        <form method="post" action="{% url 'tickets:ticket_take' ticket.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-dark">
+                                <i class="bi bi-person-check me-1"></i>Bileti Üstlen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- Kapat formu (atanan personel veya ADMIN için, sadece IN_PROGRESS) -->
+        {% if ticket.status == 'IN_PROGRESS' %}
+            {% if ticket.assigned_to == user or user.role == 'ADMIN' %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <h6 class="text-muted mb-3">Bileti Kapat</h6>
+                        <form method="post" action="{% url 'tickets:ticket_close' ticket.pk %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="resolution_note" class="form-label">Çözüm Notu</label>
+                                <textarea name="resolution_note"
+                                          id="resolution_note"
+                                          class="form-control"
+                                          rows="3"
+                                          placeholder="Sorunu nasıl çözdüğünüzü açıklayın..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-dark">
+                                <i class="bi bi-check-lg me-1"></i>Bileti Kapat
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+
+    </div>
+
+    <!-- Sağ: Detay bilgileri -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Detaylar</h6>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Talep Sahibi</small>
+                    <span>
+                        <i class="bi bi-person me-1"></i>
+                        {% if ticket.sender %}
+                            {{ ticket.sender.get_full_name|default:ticket.sender.username }}
+                        {% else %}
+                            <span class="text-muted">Silinmiş kullanıcı</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Departman</small>
+                    <span>
+                        <i class="bi bi-building me-1"></i>
+                        {% if ticket.department %}
+                            {{ ticket.department.name }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Kategori</small>
+                    <span>
+                        <i class="bi bi-tag me-1"></i>
+                        {% if ticket.category %}
+                            {{ ticket.category.name }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Üstlenen Personel</small>
+                    <span>
+                        <i class="bi bi-person-badge me-1"></i>
+                        {% if ticket.assigned_to %}
+                            {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.username }}
+                        {% else %}
+                            <span class="text-muted">Henüz atanmadı</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Oluşturulma</small>
+                    <span>
+                        <i class="bi bi-calendar me-1"></i>
+                        {{ ticket.created_at|date:"d.m.Y H:i" }}
+                    </span>
+                </div>
+
+                {% if ticket.closed_at %}
+                    <div class="mb-0">
+                        <small class="text-muted d-block">Kapatılma</small>
+                        <span>
+                            <i class="bi bi-calendar-check me-1"></i>
+                            {{ ticket.closed_at|date:"d.m.Y H:i" }}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Transfer butonu (AGENT/MANAGER/ADMIN, kapalı olmayan biletler) -->
+        {% if ticket.status != 'CLOSED' %}
+            {% if user.role == 'AGENT' or user.role == 'MANAGER' or user.role == 'ADMIN' %}
+                <a href="{% url 'tickets:ticket_transfer' ticket.pk %}" class="btn btn-outline-dark w-100 mt-3">
+                    <i class="bi bi-send me-1"></i>Transfer Et
+                </a>
+            {% endif %}
+        {% endif %}
+
+        <!-- Geri dön -->
+        <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary w-100 mt-3">
+            <i class="bi bi-arrow-left me-1"></i>Bilet Listesine Dön
+        </a>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+/* Genel sayfa düzeni */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 0.925rem;
+}
+
+main {
+    flex: 1;
+}
+
+/* Navbar */
+.navbar-brand {
+    letter-spacing: 0.5px;
+}
+
+/* Tablo */
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Kartlar */
+.card {
+    transition: box-shadow 0.15s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Badge */
+.badge {
+    font-weight: 500;
+    font-size: 0.78rem;
+}
+
+/* Boş durum ikonu */
+.display-4 {
+    opacity: 0.3;
+}

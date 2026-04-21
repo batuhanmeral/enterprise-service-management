@@ -1,0 +1,22 @@
+<!-- Son bildirimler partial -->
+{% if recent_notifications %}
+    <div class="card border-0 shadow-sm mt-3">
+        <div class="card-body">
+            <h6 class="text-muted mb-3">
+                <i class="bi bi-bell me-1"></i>Son Bildirimler
+            </h6>
+            <div class="list-group list-group-flush">
+                {% for n in recent_notifications %}
+                    <a href="{% url 'tickets:ticket_detail' n.ticket.pk %}"
+                       class="list-group-item list-group-item-action px-0 py-2">
+                        <small>{{ n.message|truncatechars:80 }}</small>
+                        <small class="text-muted d-block">{{ n.created_at|date:"d.m.Y H:i" }}</small>
+                    </a>
+                {% endfor %}
+            </div>
+            <a href="{% url 'notifications:notification_list' %}" class="btn btn-sm btn-outline-secondary w-100 mt-2">
+                Tüm bildirimler
+            </a>
+        </div>
+    </div>
+{% endif %}

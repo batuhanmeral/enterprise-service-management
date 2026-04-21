@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block title %}Ana Sayfa — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+
+<!-- Hoş geldin başlığı -->
+<div class="mb-4">
+    <h1 class="h4">
+        <i class="bi bi-house me-2"></i>Hoş geldiniz, {{ user.get_full_name|default:user.username }}
+    </h1>
+    <small class="text-muted">
+        {{ user.get_role_display }}
+        {% if user.department %} · {{ user.department.name }}{% endif %}
+    </small>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- EMPLOYEE DASHBOARD -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+{% if user.role == 'EMPLOYEE' %}
+    <div class="row g-3 mb-4">
+        <div class="col-4">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-primary mb-0">{{ my_open }}</div>
+                <small class="text-muted">Açık Taleplerim</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-warning mb-0">{{ my_in_progress }}</div>
+                <small class="text-muted">İşlemde</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-secondary mb-0">{{ my_closed }}</div>
+                <small class="text-muted">Çözüldü</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Son Taleplerim</h6>
+                    {% if recent_tickets %}
+                        <div class="list-group list-group-flush">
+                            {% for t in recent_tickets %}
+                                <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between">
+                                    <div>
+                                        <span>{{ t.subject }}</span>
+                                        <small class="text-muted d-block">{{ t.created_at|date:"d.m.Y" }}</small>
+                                    </div>
+                                    {% if t.status == 'OPEN' %}
+                                        <span class="badge bg-primary align-self-center">Açık</span>
+                                    {% elif t.status == 'IN_PROGRESS' %}
+                                        <span class="badge bg-warning text-dark align-self-center">İşlemde</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary align-self-center">Kapalı</span>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Henüz talebiniz yok</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <a href="{% url 'tickets:ticket_create' %}" class="btn btn-dark w-100 mb-3">
+                <i class="bi bi-plus-lg me-1"></i>Yeni Talep Oluştur
+            </a>
+            {% include "partials/_recent_notifications.html" %}
+        </div>
+    </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- AGENT DASHBOARD -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+{% elif user.role == 'AGENT' %}
+    <div class="row g-3 mb-4">
+        <div class="col-4">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-primary mb-0">{{ dept_open }}</div>
+                <small class="text-muted">Bekleyen Biletler</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-warning mb-0">{{ dept_in_progress }}</div>
+                <small class="text-muted">İşlemdeki</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-dark mb-0">{{ my_assigned|length }}</div>
+                <small class="text-muted">Üstlendiğim</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Üstlendiğim Biletler</h6>
+                    {% if my_assigned %}
+                        <div class="list-group list-group-flush">
+                            {% for t in my_assigned %}
+                                <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0">
+                                    <span>{{ t.subject }}</span>
+                                    <small class="text-muted d-block">
+                                        {{ t.sender.get_full_name|default:t.sender.username }} · {{ t.created_at|date:"d.m.Y" }}
+                                    </small>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Üstlendiğiniz bilet yok</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Bekleyen Biletler (Havuz)</h6>
+                    {% if waiting_tickets %}
+                        <div class="list-group list-group-flush">
+                            {% for t in waiting_tickets %}
+                                <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0">
+                                    <span>{{ t.subject }}</span>
+                                    <small class="text-muted d-block">{{ t.created_at|date:"d.m.Y H:i" }}</small>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Bekleyen bilet yok</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% include "partials/_recent_notifications.html" %}
+        </div>
+    </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- MANAGER DASHBOARD -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+{% elif user.role == 'MANAGER' %}
+    <div class="row g-3 mb-4">
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold mb-0">{{ dept_total }}</div>
+                <small class="text-muted">Toplam</small>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-primary mb-0">{{ dept_open }}</div>
+                <small class="text-muted">Açık</small>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-warning mb-0">{{ dept_in_progress }}</div>
+                <small class="text-muted">İşlemde</small>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-secondary mb-0">{{ dept_closed }}</div>
+                <small class="text-muted">Kapalı</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Personel İş Yükü</h6>
+                    {% if personnel_load %}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Personel</th><th class="text-center">Aktif Bilet</th></tr></thead>
+                                <tbody>
+                                    {% for p in personnel_load %}
+                                        <tr>
+                                            <td>{{ p.get_full_name|default:p.username }}</td>
+                                            <td class="text-center">
+                                                {% if p.active > 0 %}
+                                                    <span class="badge bg-warning text-dark">{{ p.active }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">0</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Personel bulunamadı</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Son Biletler</h6>
+                    {% if recent_tickets %}
+                        <div class="list-group list-group-flush">
+                            {% for t in recent_tickets %}
+                                <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between">
+                                    <div>
+                                        <span>{{ t.subject }}</span>
+                                        <small class="text-muted d-block">{{ t.sender.get_full_name|default:t.sender.username }}</small>
+                                    </div>
+                                    {% if t.status == 'OPEN' %}
+                                        <span class="badge bg-primary align-self-center">Açık</span>
+                                    {% elif t.status == 'IN_PROGRESS' %}
+                                        <span class="badge bg-warning text-dark align-self-center">İşlemde</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary align-self-center">Kapalı</span>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Bilet yok</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% include "partials/_recent_notifications.html" %}
+        </div>
+    </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ADMIN DASHBOARD -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+{% elif user.role == 'ADMIN' %}
+    <div class="row g-3 mb-4">
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold mb-0">{{ total_tickets }}</div>
+                <small class="text-muted">Toplam Bilet</small>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-primary mb-0">{{ total_open }}</div>
+                <small class="text-muted">Açık</small>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-warning mb-0">{{ total_in_progress }}</div>
+                <small class="text-muted">İşlemde</small>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h3 fw-bold text-secondary mb-0">{{ total_closed }}</div>
+                <small class="text-muted">Kapalı</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Departman Özeti</h6>
+                    {% if dept_summary %}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Departman</th><th class="text-center">Açık</th><th class="text-center">Toplam</th></tr></thead>
+                                <tbody>
+                                    {% for d in dept_summary %}
+                                        <tr>
+                                            <td>{{ d.name }}</td>
+                                            <td class="text-center">
+                                                {% if d.open_count > 0 %}
+                                                    <span class="badge bg-primary">{{ d.open_count }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">0</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">{{ d.total_count }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Departman yok</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">Son Biletler (Sistem Geneli)</h6>
+                    {% if recent_tickets %}
+                        <div class="list-group list-group-flush">
+                            {% for t in recent_tickets %}
+                                <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between">
+                                    <div>
+                                        <span>{{ t.subject }}</span>
+                                        <small class="text-muted d-block">
+                                            {{ t.department.name|default:"—" }} · {{ t.created_at|date:"d.m.Y" }}
+                                        </small>
+                                    </div>
+                                    {% if t.status == 'OPEN' %}
+                                        <span class="badge bg-primary align-self-center">Açık</span>
+                                    {% elif t.status == 'IN_PROGRESS' %}
+                                        <span class="badge bg-warning text-dark align-self-center">İşlemde</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary align-self-center">Kapalı</span>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">Bilet yok</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-dark w-100 mt-3">
+                <i class="bi bi-bar-chart-line me-1"></i>Detaylı Raporlar
+            </a>
+
+            {% include "partials/_recent_notifications.html" %}
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}

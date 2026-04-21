@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Profil — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+
+        <h1 class="h4 mb-4">
+            <i class="bi bi-person-circle me-2"></i>Profilim
+        </h1>
+
+        <!-- Kullanıcı bilgileri kartı -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                         style="width: 56px; height: 56px; font-size: 1.4rem;">
+                        {{ user.first_name|first|default:user.username|first|upper }}
+                    </div>
+                    <div>
+                        <h5 class="mb-0">{{ user.get_full_name|default:user.username }}</h5>
+                        <span class="text-muted">@{{ user.username }}</span>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">E-posta</small>
+                        <span><i class="bi bi-envelope me-1"></i>{{ user.email|default:"Belirtilmemiş" }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Telefon</small>
+                        <span><i class="bi bi-phone me-1"></i>{{ user.phone|default:"Belirtilmemiş" }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Rol</small>
+                        <span><i class="bi bi-shield-check me-1"></i>{{ user.get_role_display }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Departman</small>
+                        <span>
+                            <i class="bi bi-building me-1"></i>
+                            {% if user.department %}
+                                {{ user.department.name }}
+                            {% else %}
+                                <span class="text-muted">Atanmamış</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Kayıt Tarihi</small>
+                        <span><i class="bi bi-calendar me-1"></i>{{ user.date_joined|date:"d.m.Y" }}</span>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Son Giriş</small>
+                        <span>
+                            <i class="bi bi-clock me-1"></i>
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"d.m.Y H:i" }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bilgi güncelleme formu -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h6 class="mb-3">Bilgilerimi Güncelle</h6>
+                <form method="post" action="{% url 'identity:profile_update' %}" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label for="id_first_name" class="form-label">Ad</label>
+                            <input type="text"
+                                   name="first_name"
+                                   id="id_first_name"
+                                   class="form-control"
+                                   value="{{ user.first_name }}"
+                                   placeholder="Adınız">
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="id_last_name" class="form-label">Soyad</label>
+                            <input type="text"
+                                   name="last_name"
+                                   id="id_last_name"
+                                   class="form-control"
+                                   value="{{ user.last_name }}"
+                                   placeholder="Soyadınız">
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="id_email" class="form-label">E-posta</label>
+                            <input type="email"
+                                   name="email"
+                                   id="id_email"
+                                   class="form-control"
+                                   value="{{ user.email }}"
+                                   placeholder="ornek@sirket.com">
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="id_phone" class="form-label">Telefon</label>
+                            <input type="text"
+                                   name="phone"
+                                   id="id_phone"
+                                   class="form-control"
+                                   value="{{ user.phone|default:'' }}"
+                                   placeholder="05XX XXX XX XX">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-check-lg me-1"></i>Kaydet
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

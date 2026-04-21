@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Yeni Bilet — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+
+        <h1 class="h4 mb-4">
+            <i class="bi bi-plus-circle me-2"></i>Yeni Bilet Oluştur
+        </h1>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Konu -->
+                    <div class="mb-3">
+                        <label for="id_subject" class="form-label">Konu</label>
+                        <input type="text"
+                               name="subject"
+                               id="id_subject"
+                               class="form-control {% if form.subject.errors %}is-invalid{% endif %}"
+                               value="{{ form.subject.value|default:'' }}"
+                               placeholder="Talebin kısa başlığı"
+                               required>
+                        {% if form.subject.errors %}
+                            <div class="invalid-feedback">{{ form.subject.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Departman -->
+                    <div class="mb-3">
+                        <label for="id_department" class="form-label">Departman</label>
+                        <select name="department"
+                                id="id_department"
+                                class="form-select {% if form.department.errors %}is-invalid{% endif %}"
+                                required>
+                            <option value="">Departman seçin...</option>
+                            {% for choice in form.department.field.queryset %}
+                                <option value="{{ choice.pk }}"
+                                    {% if form.department.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ choice.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.department.errors %}
+                            <div class="invalid-feedback">{{ form.department.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Kategori (AJAX ile dinamik doldurulur) -->
+                    <div class="mb-3">
+                        <label for="id_category" class="form-label">Kategori <small class="text-muted">(opsiyonel)</small></label>
+                        <select name="category"
+                                id="id_category"
+                                class="form-select {% if form.category.errors %}is-invalid{% endif %}"
+                                disabled>
+                            <option value="">Önce departman seçin...</option>
+                        </select>
+                        {% if form.category.errors %}
+                            <div class="invalid-feedback">{{ form.category.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Mesaj -->
+                    <div class="mb-3">
+                        <label for="id_message" class="form-label">Mesaj</label>
+                        <textarea name="message"
+                                  id="id_message"
+                                  class="form-control {% if form.message.errors %}is-invalid{% endif %}"
+                                  rows="5"
+                                  placeholder="Talebinizi detaylı açıklayın..."
+                                  required>{{ form.message.value|default:'' }}</textarea>
+                        {% if form.message.errors %}
+                            <div class="invalid-feedback">{{ form.message.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Dosya Eki -->
+                    <div class="mb-4">
+                        <label for="id_attachment" class="form-label">Dosya Eki <small class="text-muted">(opsiyonel)</small></label>
+                        <input type="file"
+                               name="attachment"
+                               id="id_attachment"
+                               class="form-control">
+                    </div>
+
+                    <!-- Butonlar -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-send me-1"></i>Gönder
+                        </button>
+                        <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary">İptal</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- AJAX: Departman değiştiğinde kategorileri dinamik getir -->
+<script>
+    const deptSelect = document.getElementById('id_department');
+    const catSelect = document.getElementById('id_category');
+
+    deptSelect.addEventListener('change', function () {
+        const deptId = this.value;
+
+        // Kategori dropdown'ını sıfırla
+        catSelect.innerHTML = '<option value="">Yükleniyor...</option>';
+        catSelect.disabled = true;
+
+        if (!deptId) {
+            catSelect.innerHTML = '<option value="">Önce departman seçin...</option>';
+            return;
+        }
+
+        // AJAX isteği
+        fetch(`/departments/${deptId}/categories/`)
+            .then(res => res.json())
+            .then(categories => {
+                catSelect.innerHTML = '<option value="">Kategori seçin...</option>';
+                categories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.id;
+                    opt.textContent = cat.name;
+                    catSelect.appendChild(opt);
+                });
+                catSelect.disabled = categories.length === 0;
+                if (categories.length === 0) {
+                    catSelect.innerHTML = '<option value="">Bu departmanda kategori yok</option>';
+                }
+            })
+            .catch(() => {
+                catSelect.innerHTML = '<option value="">Kategoriler yüklenemedi</option>';
+            });
+    });
+</script>
+{% endblock %}

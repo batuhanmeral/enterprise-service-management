@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Raporlar — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-4">
+    <i class="bi bi-bar-chart-line me-2"></i>Raporlar ve İstatistikler
+</h1>
+
+<!-- Özet kartları -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="display-6 fw-bold">{{ total_tickets }}</div>
+            <small class="text-muted">Toplam Bilet</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="display-6 fw-bold text-primary">{{ open_count }}</div>
+            <small class="text-muted">Açık</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="display-6 fw-bold text-warning">{{ in_progress_count }}</div>
+            <small class="text-muted">İşlemde</small>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm text-center py-3">
+            <div class="display-6 fw-bold text-secondary">{{ closed_count }}</div>
+            <small class="text-muted">Kapalı</small>
+        </div>
+    </div>
+</div>
+
+<!-- Grafikler -->
+<div class="row g-3 mb-4">
+    <!-- Aylık trend -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Aylık Bilet Trendi</h6>
+                <canvas id="monthlyChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Durum dağılımı pasta -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Durum Dağılımı</h6>
+                <canvas id="statusChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Departman karşılaştırma -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Departman Karşılaştırması</h6>
+                <canvas id="deptChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Departman performans tablosu -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Departman Performansı</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Departman</th>
+                                <th class="text-center">Toplam</th>
+                                <th class="text-center">Açık</th>
+                                <th class="text-center">Ort. Çözüm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dept in dept_avg_resolution %}
+                                <tr>
+                                    <td>{{ dept.name }}</td>
+                                    <td class="text-center">{{ dept.closed_count }}</td>
+                                    <td class="text-center">
+                                        {% for d in departments %}
+                                            {% if d.name == dept.name %}{{ d.open_tickets }}{% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if dept.avg_hours != None %}
+                                            {{ dept.avg_hours }} saat
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="4" class="text-center text-muted">Veri yok</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- En çok talep alan kategoriler -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">En Çok Talep Alan Kategoriler</h6>
+                {% if top_categories %}
+                    <div class="list-group list-group-flush">
+                        {% for cat in top_categories %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    <span>{{ cat.name }}</span>
+                                    <small class="text-muted d-block">{{ cat.department.name }}</small>
+                                </div>
+                                <span class="badge bg-dark rounded-pill">{{ cat.ticket_count }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center mb-0">Veri yok</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Personel iş yükü tablosu -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Personel İş Yükü</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Personel</th>
+                                <th class="text-center">Aktif</th>
+                                <th class="text-center">Kapattığı</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in personnel %}
+                                <tr>
+                                    <td>{{ p.get_full_name|default:p.username }}</td>
+                                    <td class="text-center">
+                                        {% if p.active_tickets > 0 %}
+                                            <span class="badge bg-warning text-dark">{{ p.active_tickets }}</span>
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ p.total_closed }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="3" class="text-center text-muted">Veri yok</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personel ortalama çözüm süresi -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Personel Ort. Çözüm Süresi</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Personel</th>
+                                <th class="text-center">Ort. Süre</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in personnel_avg %}
+                                <tr>
+                                    <td>{{ p.name }}</td>
+                                    <td class="text-center">
+                                        {% if p.avg_hours != None %}
+                                            {{ p.avg_hours }} saat
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="2" class="text-center text-muted">Veri yok</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+    // Aylık bilet trend grafiği (çizgi)
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: {{ monthly_labels|safe }},
+            datasets: [{
+                label: 'Oluşturulan Bilet',
+                data: {{ monthly_counts|safe }},
+                borderColor: '#212529',
+                backgroundColor: 'rgba(33, 37, 41, 0.1)',
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+
+    // Durum dağılımı pasta grafiği
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Açık', 'İşlemde', 'Kapalı'],
+            datasets: [{
+                data: [{{ open_count }}, {{ in_progress_count }}, {{ closed_count }}],
+                backgroundColor: ['#0d6efd', '#ffc107', '#6c757d'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 16 } }
+            }
+        }
+    });
+
+    // Departman karşılaştırma çubuk grafiği
+    new Chart(document.getElementById('deptChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ dept_names|safe }},
+            datasets: [
+                {
+                    label: 'Açık',
+                    data: {{ dept_open|safe }},
+                    backgroundColor: '#0d6efd',
+                },
+                {
+                    label: 'İşlemde',
+                    data: {{ dept_in_progress|safe }},
+                    backgroundColor: '#ffc107',
+                },
+                {
+                    label: 'Kapalı',
+                    data: {{ dept_closed|safe }},
+                    backgroundColor: '#6c757d',
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 16 } }
+            },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+</script>
+{% endblock %}
