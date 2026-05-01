@@ -27,6 +27,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'django_filters',
     'drf_spectacular',
     'corsheaders',
@@ -43,6 +45,8 @@ MIDDLEWARE = [
     # CorsMiddleware mümkün olduğunca üstte olmalı (CommonMiddleware'den önce)
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # i18n: kullanıcı dilini session/cookie/Accept-Language'tan tespit eder
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -60,6 +64,7 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
+                'django.template.context_processors.i18n',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'notifications.context_processors.notification_count',
@@ -113,6 +118,16 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Desteklenen diller (navbar dil seçici için)
+from django.utils.translation import gettext_lazy as _  # noqa: E402
+
+LANGUAGES = [
+    ('tr', _('Türkçe')),
+    ('en', _('English')),
+]
+
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
@@ -136,6 +151,7 @@ LOGOUT_REDIRECT_URL = 'identity:login'
 # Django REST Framework Ayarları
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
@@ -151,6 +167,18 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Brute-force koruması — anonim/hatalı isteklerde IP/kullanıcı bazlı limit.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/min',         # genel anonim trafik
+        'user': '1000/hour',      # giriş yapmış kullanıcı
+        'login': '10/min',        # login: dakikada 10 deneme (IP başına)
+        'register': '5/hour',     # register: saatte 5 (kötüye kullanım önleme)
+        'password_change': '5/hour',
+    },
 }
 
 # drf-spectacular (OpenAPI/Swagger) Ayarları
@@ -168,7 +196,7 @@ SPECTACULAR_SETTINGS = {
         'displayOperationId': False,
     },
     'TAGS': [
-        {'name': 'auth', 'description': 'Kimlik doğrulama (login, logout, register, profil)'},
+        {'name': 'auth', 'description': 'Kimlik doğrulama (login, logout, register, profil, JWT)'},
         {'name': 'users', 'description': 'Kullanıcı yönetimi (Admin)'},
         {'name': 'departments', 'description': 'Departman ve kategori yönetimi'},
         {'name': 'tickets', 'description': 'Bilet yaşam döngüsü, yorumlar, transfer'},
@@ -177,6 +205,19 @@ SPECTACULAR_SETTINGS = {
         {'name': 'dashboard', 'description': 'Rol bazlı dashboard verisi'},
     ],
 }
+
+# JWT Ayarları (djangorestframework-simplejwt)
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),     # access kısa ömürlü
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),        # refresh 1 hafta
+    'ROTATE_REFRESH_TOKENS': True,                      # her refresh'te yeni refresh
+    'BLACKLIST_AFTER_ROTATION': True,                   # eski refresh blacklist'e
+    'UPDATE_LAST_LOGIN': True,                          # last_login güncellenir
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 
 # CORS Ayarları (django-cors-headers)
 # Geliştirme: tüm origin'lere izin ver. Production'da CORS_ALLOWED_ORIGINS ile kısıtla.

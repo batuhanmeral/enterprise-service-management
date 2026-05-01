@@ -38,6 +38,29 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 Q(sender=user) | Q(assigned_to=user)
             ).exclude(status__in=[Status.OPEN, Status.IN_PROGRESS]).order_by('-created_at')[:5]
 
+            # Haftalık kapanış istatistikleri (son 4 hafta)
+            from datetime import timedelta
+            from django.utils import timezone
+            today = timezone.now().date()
+            # Haftanın başlangıcını Pazartesi'ye ayarla
+            week_start = today - timedelta(days=today.weekday())
+            weekly_stats = []
+            for i in range(4):
+                ws = week_start - timedelta(weeks=i)
+                we = ws + timedelta(days=6)
+                count = Ticket.objects.filter(
+                    assigned_to=user,
+                    status=Status.CLOSED,
+                    closed_at__date__gte=ws,
+                    closed_at__date__lte=we,
+                ).count()
+                weekly_stats.append({
+                    'week_start': ws,
+                    'week_end': we,
+                    'count': count,
+                })
+            context['weekly_stats'] = weekly_stats
+
         # Yönetici (MANAGER): Departman istatistikleri
         elif user.role == Role.MANAGER:
             dept_tickets = Ticket.objects.filter(department=user.department)

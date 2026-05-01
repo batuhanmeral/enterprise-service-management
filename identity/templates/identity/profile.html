@@ -193,6 +193,36 @@
             </div>
         </div>
 
+        <!-- Dil tercihi -->
+        {% load i18n %}
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+                <h6 class="mb-3">
+                    <i class="bi bi-globe2 me-1"></i>Dil Tercihi
+                </h6>
+                <p class="text-muted small mb-3">
+                    Arayüz dilini değiştirin. Tercih oturumunuza ve tarayıcınıza kaydedilir.
+                </p>
+                <form action="{% url 'set_language' %}" method="post" class="d-flex flex-wrap gap-2 align-items-center">
+                    {% csrf_token %}
+                    <input name="next" type="hidden" value="{% url 'identity:profile' %}">
+                    <select name="language" class="form-select form-select-sm" style="max-width: 240px;">
+                        {% get_available_languages as LANGUAGES %}
+                        {% get_language_info_list for LANGUAGES as languages %}
+                        {% for lang in languages %}
+                            <option value="{{ lang.code }}" {% if lang.code == LANGUAGE_CODE %}selected{% endif %}>
+                                {% if lang.code == 'tr' %}🇹🇷{% else %}🇬🇧{% endif %}
+                                {{ lang.name_local|capfirst }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-dark btn-sm">
+                        <i class="bi bi-check-lg me-1"></i>Kaydet
+                    </button>
+                </form>
+            </div>
+        </div>
+
         <!-- Hesap silme -->
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-body p-4">
@@ -213,36 +243,4 @@
     </div>
 </div>
 
-<!-- Aktivite Geçmişi -->
-{% if activity %}
-<div class="row justify-content-center mt-2">
-    <div class="col-lg-7">
-        <div class="card border-0 shadow-sm mt-4">
-            <div class="card-body p-4">
-                <h6 class="mb-3">
-                    <i class="bi bi-activity me-1"></i>Son Aktiviteler
-                </h6>
-                <div class="list-group list-group-flush">
-                    {% for entry in activity %}
-                        <div class="list-group-item px-0 py-2">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <a href="{% url 'tickets:ticket_detail' entry.ticket_id %}"
-                                       class="text-decoration-none fw-medium me-1">
-                                        #{{ entry.ticket_id }}
-                                    </a>
-                                    <span class="text-muted">{{ entry.action }}</span>
-                                </div>
-                                <small class="text-muted text-nowrap ms-3">
-                                    {{ entry.created_at|date:"d.m.Y H:i" }}
-                                </small>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}

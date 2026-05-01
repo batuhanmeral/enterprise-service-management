@@ -1,43 +1,148 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Kullanıcılar — Talep Yönetim Sistemi{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h4 mb-0">
-        <i class="bi bi-people me-2"></i>Kullanıcılar
+        <i class="bi bi-people me-2"></i>{% trans "Kullanıcılar" %}
         {% if pending_count %}
-            <span class="badge bg-warning text-dark ms-1">{{ pending_count }} onay bekliyor</span>
+            <span class="badge bg-warning text-dark ms-1">{% blocktrans with n=pending_count %}{{ n }} pending approval{% endblocktrans %}</span>
         {% endif %}
     </h1>
     <a href="{% url 'identity:user_create' %}" class="btn btn-dark">
-        <i class="bi bi-person-plus me-1"></i>Yeni Kullanıcı Ekle
+        <i class="bi bi-person-plus me-1"></i>{% trans "Yeni Kullanıcı Ekle" %}
     </a>
 </div>
 
+<!-- Filtre ve Sıralama -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <!-- Rol -->
+            <div class="col-md-3">
+                <label for="filter_role" class="form-label small text-muted mb-1">{% trans "Rol" %}</label>
+                <select name="role" id="filter_role" class="form-select form-select-sm">
+                    <option value="">{% trans "Tümü" %}</option>
+                    {% for value, label in role_choices %}
+                        <option value="{{ value }}" {% if current_role == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Departman -->
+            <div class="col-md-3">
+                <label for="filter_department" class="form-label small text-muted mb-1">{% trans "Departman" %}</label>
+                <select name="department" id="filter_department" class="form-select form-select-sm">
+                    <option value="">Tümü</option>
+                    <option value="none" {% if current_department == 'none' %}selected{% endif %}>{% trans "— Atanmamış —" %}</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Durum -->
+            <div class="col-md-3">
+                <label for="filter_status" class="form-label small text-muted mb-1">{% trans "Durum" %}</label>
+                <select name="status" id="filter_status" class="form-select form-select-sm">
+                    <option value="">Tümü</option>
+                    <option value="active" {% if current_status == 'active' %}selected{% endif %}>{% trans "Aktif" %}</option>
+                    <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>{% trans "Pasif (onay bekliyor / deaktif)" %}</option>
+                </select>
+            </div>
+
+            <!-- Sıralama -->
+            <div class="col-md-3">
+                <label for="filter_sort" class="form-label small text-muted mb-1">{% trans "Sıralama" %}</label>
+                <select name="sort" id="filter_sort" class="form-select form-select-sm">
+                    <option value="username" {% if current_sort == 'username' %}selected{% endif %}>{% trans "Kullanıcı Adı (A-Z)" %}</option>
+                    <option value="-username" {% if current_sort == '-username' %}selected{% endif %}>{% trans "Kullanıcı Adı (Z-A)" %}</option>
+                    <option value="name" {% if current_sort == 'name' %}selected{% endif %}>{% trans "Ad (A-Z)" %}</option>
+                    <option value="-name" {% if current_sort == '-name' %}selected{% endif %}>{% trans "Ad (Z-A)" %}</option>
+                    <option value="role" {% if current_sort == 'role' %}selected{% endif %}>{% trans "Rol" %}</option>
+                    <option value="department" {% if current_sort == 'department' %}selected{% endif %}>{% trans "Departman" %}</option>
+                    <option value="-date_joined" {% if current_sort == '-date_joined' %}selected{% endif %}>{% trans "Kayıt (En Yeni)" %}</option>
+                    <option value="date_joined" {% if current_sort == 'date_joined' %}selected{% endif %}>{% trans "Kayıt (En Eski)" %}</option>
+                </select>
+            </div>
+
+            <!-- Filtrele butonu -->
+            <div class="col-md-12 d-flex gap-2 mt-2">
+                <button type="submit" class="btn btn-dark btn-sm">
+                    <i class="bi bi-funnel me-1"></i>{% trans "Filtrele" %}
+                </button>
+                <a href="{% url 'identity:user_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-lg me-1"></i>{% trans "Temizle" %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% if users %}
+    {# Toplu işlem formu — checkbox'lar HTML5 form="bulk-form" ile bağlanır, #}
+    {# böylece per-row formlarla iç içe geçmez. #}
+    <form method="post" action="{% url 'identity:user_bulk_action' %}"
+          id="bulk-form" onsubmit="return confirmBulkAction();">
+        {% csrf_token %}
+        <div class="d-flex align-items-end gap-2 mb-3">
+            <div>
+                <label for="bulk_action" class="form-label small text-muted mb-1">{% trans "Toplu İşlem" %}</label>
+                <select name="action" id="bulk_action" class="form-select form-select-sm" style="min-width:200px;">
+                    <option value="">{% trans "— İşlem seçin —" %}</option>
+                    <option value="approve">{% trans "Onayla (aktif et)" %}</option>
+                    <option value="deactivate">{% trans "Deaktif et" %}</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-dark btn-sm">
+                <i class="bi bi-lightning-charge me-1"></i>{% trans "Uygula" %}
+            </button>
+            <small class="text-muted ms-2 align-self-center">
+                <span id="selected-count">0</span> {% trans "kullanıcı seçili" %}
+            </small>
+        </div>
+    </form>
+
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-dark">
                 <tr>
-                    <th>Kullanıcı Adı</th>
-                    <th>Ad Soyad</th>
-                    <th>Rol</th>
-                    <th>Departman</th>
-                    <th>Durum</th>
-                    <th>Kayıt Tarihi</th>
-                    <th>İşlem</th>
+                    <th style="width:36px;">
+                        <input type="checkbox" class="form-check-input" id="select-all" title="{% trans 'Tümünü seç' %}" form="bulk-form">
+                    </th>
+                    <th>{% trans "Kullanıcı Adı" %}</th>
+                    <th>{% trans "Ad Soyad" %}</th>
+                    <th>{% trans "Telefon" %}</th>
+                    <th>{% trans "Rol" %}</th>
+                    <th>{% trans "Departman" %}</th>
+                    <th>{% trans "Durum" %}</th>
+                    <th>{% trans "Kayıt Tarihi" %}</th>
+                    <th>{% trans "İşlem" %}</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in users %}
                     <tr {% if not u.is_active %}class="table-warning"{% endif %}>
                         <td>
+                            {% if u != request.user %}
+                                <input type="checkbox" name="user_ids" value="{{ u.pk }}" class="form-check-input row-check" form="bulk-form">
+                            {% endif %}
+                        </td>
+                        <td>
                             <a href="{% url 'identity:user_detail' u.pk %}" class="text-decoration-none fw-medium">
                                 {{ u.username }}
                             </a>
                         </td>
                         <td>{{ u.get_full_name|default:"—" }}</td>
+                        <td>
+                            {% if u.phone %}
+                                {{ u.phone }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if u.role == 'ADMIN' %}
                                 <span class="badge bg-danger">{{ u.get_role_display }}</span>
@@ -58,9 +163,9 @@
                         </td>
                         <td>
                             {% if u.is_active %}
-                                <span class="badge bg-success">Aktif</span>
+                                <span class="badge bg-success">{% trans "Aktif" %}</span>
                             {% else %}
-                                <span class="badge bg-secondary">Pasif</span>
+                                <span class="badge bg-secondary">{% trans "Pasif" %}</span>
                             {% endif %}
                         </td>
                         <td class="text-muted">{{ u.date_joined|date:"d.m.Y" }}</td>
@@ -69,12 +174,12 @@
                                 {% if not u.is_active %}
                                     <form method="post" action="{% url 'identity:user_approve' u.pk %}">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-success" title="Onayla">
+                                        <button type="submit" class="btn btn-sm btn-success" title="{% trans 'Onayla' %}">
                                             <i class="bi bi-check-lg"></i>
                                         </button>
                                     </form>
                                 {% endif %}
-                                <a href="{% url 'identity:user_update' u.pk %}" class="btn btn-sm btn-outline-dark" title="Düzenle">
+                                <a href="{% url 'identity:user_update' u.pk %}" class="btn btn-sm btn-outline-dark" title="{% trans 'Düzenle' %}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
                             </div>
@@ -91,19 +196,19 @@
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-left"></i>
                         </a>
                     </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">{{ num }}</a>
                     </li>
                 {% endfor %}
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>
@@ -115,7 +220,46 @@
 {% else %}
     <div class="text-center text-muted py-5">
         <i class="bi bi-people display-4 d-block mb-3"></i>
-        <p>Henüz kullanıcı bulunmuyor.</p>
+        <p>{% trans "Henüz kullanıcı bulunmuyor." %}</p>
     </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const selectAll = document.getElementById('select-all');
+    const rowChecks = document.querySelectorAll('.row-check');
+    const counter = document.getElementById('selected-count');
+
+    function updateCount() {
+        const n = document.querySelectorAll('.row-check:checked').length;
+        if (counter) counter.textContent = n;
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            rowChecks.forEach(cb => { cb.checked = selectAll.checked; });
+            updateCount();
+        });
+    }
+    rowChecks.forEach(cb => cb.addEventListener('change', updateCount));
+    updateCount();
+})();
+
+function confirmBulkAction() {
+    const action = document.getElementById('bulk_action').value;
+    if (!action) {
+        alert('Lütfen bir işlem seçin.');
+        return false;
+    }
+    const n = document.querySelectorAll('.row-check:checked').length;
+    if (n === 0) {
+        alert('Lütfen en az bir kullanıcı seçin.');
+        return false;
+    }
+    const labels = { approve: 'onaylamak', deactivate: 'deaktif etmek' };
+    return confirm(`${n} kullanıcıyı ${labels[action]} istediğinize emin misiniz?`);
+}
+</script>
 {% endblock %}

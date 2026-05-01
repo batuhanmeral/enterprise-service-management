@@ -1,20 +1,22 @@
 import calendar
 import csv
 import io
-from datetime import date
+import math
+from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden
 from django.template.loader import render_to_string
 from django.views.generic import TemplateView
 from django.db.models import Avg, Count, ExpressionWrapper, F, Q, DurationField
+from django.db.models.functions import ExtractHour
 from django.utils import timezone
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from weasyprint import HTML
 
-from tickets.models import Ticket, Status, Priority
+from tickets.models import Ticket, Status, Priority, TicketHistory
 from departments.models import Department, Category
 from identity.models import User, Role
 from identity.views import ManagerOrAdminRequiredMixin
@@ -101,10 +103,23 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
 
         context['dept_avg_resolution'] = dept_avg_resolution
 
-        # En çok talep alan kategoriler (ilk 10)
-        top_categories = cat_qs.annotate(
-            ticket_count=Count('tickets'),
-        ).filter(ticket_count__gt=0).order_by('-ticket_count')[:10]
+        # En çok talep alan kategoriler (ilk 10) — date filter + manager scope'a uyumlu.
+        # ticket_qs üzerinden category bazında gruplayıp en çok talep alanları çıkarıyoruz.
+        top_cat_rows = (
+            ticket_qs.filter(category__isnull=False)
+            .values('category_id', 'category__name', 'category__department__name')
+            .annotate(ticket_count=Count('id'))
+            .order_by('-ticket_count')[:10]
+        )
+        top_categories = [
+            {
+                'pk': r['category_id'],
+                'name': r['category__name'],
+                'department_name': r['category__department__name'] or '—',
+                'ticket_count': r['ticket_count'],
+            }
+            for r in top_cat_rows
+        ]
 
         context['top_categories'] = top_categories
 
@@ -175,6 +190,20 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         context['dept_in_progress'] = [d.in_progress_tickets for d in departments]
         context['dept_closed'] = [d.closed_tickets for d in departments]
 
+        # Personel Karşılaştırma — Kategori bazlı başarı oranı
+        context['category_compare'] = _category_agent_comparison(
+            ticket_qs, cat_qs, self.request.GET.get('compare_category', '')
+        )
+
+        # Anomali tespiti — son 7 gün vs önceki 7 gün kategori bazlı
+        context['anomalies'] = _detect_category_anomalies(ticket_qs)
+
+        # Saatlik dağılım + saatlere göre ortalama çözüm süresi
+        hourly = _hourly_stats(ticket_qs)
+        context['hourly_labels'] = hourly['labels']
+        context['hourly_open_counts'] = hourly['open_counts']
+        context['hourly_avg_resolution'] = hourly['avg_hours']
+
         return context
 
 
@@ -208,11 +237,165 @@ def _get_monthly_trend(ticket_qs):
     return labels, counts
 
 
+def _category_agent_comparison(ticket_qs, cat_qs, selected_id):
+    """Seçilen kategoride personellerin başarı oranı (çubuk grafik verisi).
+
+    Başarı: kullanıcı bileti kapattıktan sonra bilet yeniden açılmadıysa.
+    """
+    options_qs = (
+        cat_qs
+        .annotate(_c=Count('tickets'))
+        .filter(_c__gt=0)
+        .select_related('department')
+        .order_by('-_c', 'name')
+    )
+    options = [
+        {'id': c.pk, 'name': c.name, 'department': c.department.name if c.department else ''}
+        for c in options_qs
+    ]
+
+    target = None
+    if selected_id and selected_id.isdigit():
+        target = next((c for c in options_qs if c.pk == int(selected_id)), None)
+    if target is None and options_qs:
+        target = options_qs[0]
+
+    result = {
+        'options': options,
+        'selected_id': '',
+        'selected_name': '',
+        'labels': [],
+        'success_rates': [],
+        'totals': [],
+    }
+    if target is None:
+        return result
+
+    result['selected_id'] = target.pk
+    result['selected_name'] = target.name
+
+    closed = (
+        ticket_qs
+        .filter(category=target, status=Status.CLOSED, assigned_to__isnull=False)
+        .select_related('assigned_to')
+    )
+    ticket_ids = list(closed.values_list('id', flat=True))
+    if not ticket_ids:
+        return result
+
+    reopened = set(
+        TicketHistory.objects
+        .filter(ticket_id__in=ticket_ids, action__startswith='Bilet yeniden açıldı')
+        .values_list('ticket_id', flat=True)
+    )
+
+    agents = {}
+    for t in closed:
+        a = t.assigned_to
+        bucket = agents.setdefault(a.pk, {
+            'name': a.get_full_name() or a.username,
+            'total': 0, 'success': 0,
+        })
+        bucket['total'] += 1
+        if t.id not in reopened:
+            bucket['success'] += 1
+
+    rows = sorted(agents.values(), key=lambda x: -x['total'])
+    result['labels'] = [r['name'] for r in rows]
+    result['success_rates'] = [
+        round(r['success'] * 100 / r['total'], 1) if r['total'] else 0 for r in rows
+    ]
+    result['totals'] = [r['total'] for r in rows]
+    return result
+
+
+def _detect_category_anomalies(ticket_qs, min_current=5, threshold_pct=40):
+    """Son 7 gün vs önceki 7 gün kategori bazlı bilet sayısı karşılaştırması.
+
+    Kategoride son 7 günde >= min_current bilet açılmış ve önceki haftaya kıyasla
+    artış >= threshold_pct ise uyarı üretir. Önceki haftada bilet yoksa "yeni trend"
+    olarak işaretlenir.
+    """
+    now = timezone.now()
+    cur_start = now - timedelta(days=7)
+    prev_start = now - timedelta(days=14)
+
+    cur = list(
+        ticket_qs.filter(created_at__gte=cur_start, category__isnull=False)
+        .values('category__name')
+        .annotate(c=Count('id'))
+    )
+    prev = dict(
+        ticket_qs.filter(
+            created_at__gte=prev_start,
+            created_at__lt=cur_start,
+            category__isnull=False,
+        )
+        .values_list('category__name')
+        .annotate(c=Count('id'))
+    )
+
+    alerts = []
+    for row in cur:
+        name = row['category__name']
+        c = row['c']
+        if c < min_current:
+            continue
+        p = prev.get(name, 0)
+        if p == 0:
+            alerts.append({
+                'category': name, 'current': c, 'previous': 0,
+                'change_pct': None, 'is_new_trend': True,
+            })
+        else:
+            change = (c - p) / p * 100
+            if change >= threshold_pct:
+                alerts.append({
+                    'category': name, 'current': c, 'previous': p,
+                    'change_pct': round(change, 0), 'is_new_trend': False,
+                })
+
+    alerts.sort(key=lambda x: (-(x['change_pct'] or 9999), -x['current']))
+    return alerts
+
+
+def _hourly_stats(ticket_qs):
+    """Saatlere göre bilet açılma dağılımı + ortalama çözüm süresi."""
+    open_map = dict(
+        ticket_qs.annotate(h=ExtractHour('created_at'))
+        .values_list('h')
+        .annotate(c=Count('id'))
+    )
+    open_counts = [open_map.get(h, 0) for h in range(24)]
+
+    avg_qs = (
+        ticket_qs
+        .filter(status=Status.CLOSED, closed_at__isnull=False)
+        .annotate(
+            h=ExtractHour('created_at'),
+            duration=ExpressionWrapper(F('closed_at') - F('created_at'), output_field=DurationField()),
+        )
+        .values('h')
+        .annotate(avg=Avg('duration'))
+    )
+    avg_map = {}
+    for r in avg_qs:
+        if r['avg']:
+            avg_map[r['h']] = round(r['avg'].total_seconds() / 3600, 1)
+    avg_hours = [avg_map.get(h, 0) for h in range(24)]
+
+    return {
+        'labels': list(range(24)),
+        'open_counts': open_counts,
+        'avg_hours': avg_hours,
+    }
+
+
 def _get_ticket_export_data(user, date_from=None, date_to=None):
     """Dışa aktarım için bilet verilerini toplar (rol bazlı kapsamla)."""
     qs = Ticket.objects.select_related(
         'sender', 'assigned_to', 'department', 'category',
-    ).order_by('-created_at')
+    ).prefetch_related('tags').order_by('-created_at')
 
     # Rol bazlı kapsam: ADMIN tümü, MANAGER kendi departmanı; AGENT/EMPLOYEE bu noktaya
     # ulaşamamalı (view-seviyesinde 403 döner) ama defansif filtre eklenir.
@@ -235,6 +418,7 @@ def _get_ticket_export_data(user, date_from=None, date_to=None):
             'priority': t.get_priority_display(),
             'department': t.department.name if t.department else '—',
             'category': t.category.name if t.category else '—',
+            'tags': ', '.join([tag.name for tag in t.tags.all()]) if t.tags.all() else '—',
             'sender': (t.sender.get_full_name() or t.sender.username) if t.sender else '—',
             'assigned_to': (t.assigned_to.get_full_name() or t.assigned_to.username) if t.assigned_to else '—',
             'created_at': t.created_at.strftime('%d.%m.%Y %H:%M'),
@@ -245,7 +429,7 @@ def _get_ticket_export_data(user, date_from=None, date_to=None):
 
 
 EXPORT_HEADERS = [
-    'ID', 'Konu', 'Durum', 'Öncelik', 'Departman', 'Kategori',
+    'ID', 'Konu', 'Durum', 'Öncelik', 'Departman', 'Kategori', 'Etiketler',
     'Talep Sahibi', 'Üstlenen Personel', 'Oluşturulma', 'Kapatılma', 'Çözüm Notu',
 ]
 
@@ -268,7 +452,7 @@ def export_csv(request):
     for r in rows:
         writer.writerow([
             r['id'], r['subject'], r['status'], r['priority'],
-            r['department'], r['category'], r['sender'], r['assigned_to'],
+            r['department'], r['category'], r['tags'], r['sender'], r['assigned_to'],
             r['created_at'], r['closed_at'], r['resolution_note'],
         ])
     return response
@@ -300,7 +484,7 @@ def export_excel(request):
 
     # Veri satırları
     keys = [
-        'id', 'subject', 'status', 'priority', 'department', 'category',
+        'id', 'subject', 'status', 'priority', 'department', 'category', 'tags',
         'sender', 'assigned_to', 'created_at', 'closed_at', 'resolution_note',
     ]
     for row_idx, r in enumerate(rows, 2):
@@ -308,7 +492,7 @@ def export_excel(request):
             ws.cell(row=row_idx, column=col_idx, value=r[key])
 
     # Sütun genişlikleri
-    col_widths = [6, 30, 10, 10, 18, 18, 20, 20, 18, 18, 40]
+    col_widths = [6, 30, 10, 10, 18, 18, 20, 20, 20, 18, 18, 40]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 

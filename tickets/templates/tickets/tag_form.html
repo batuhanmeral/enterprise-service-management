@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% if form.instance.pk %}Etiket Düzenle{% else %}Yeni Etiket{% endif %} — Talep Yönetim Sistemi
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-4">
+                    {% if form.instance.pk %}
+                        <i class="bi bi-pencil me-2"></i>{% blocktrans with name=form.instance.name %}Edit Tag: {{ name }}{% endblocktrans %}
+                    {% else %}
+                        <i class="bi bi-plus-lg me-2"></i>{% trans "Yeni Etiket Oluştur" %}
+                    {% endif %}
+                </h2>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">{% trans "Etiket Adı" %}</label>
+                        <input type="text"
+                               name="name"
+                               id="id_name"
+                               class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                               value="{{ form.name.value|default:'' }}"
+                               required>
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="id_color" class="form-label">{% trans "Renk Kodu" %}</label>
+                        <input type="text"
+                               name="color"
+                               id="id_color"
+                               class="form-control {% if form.color.errors %}is-invalid{% endif %}"
+                               value="{{ form.color.value|default:'#6c757d' }}"
+                               required>
+                        {% if form.color.errors %}
+                            <div class="invalid-feedback">{{ form.color.errors.0 }}</div>
+                        {% endif %}
+                        <small class="text-muted d-block mt-1">{% trans "Örnek: #dc3545 (Acil Kırmızı), #198754 (Yeşil), #0d6efd (Mavi)" %}</small>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'tickets:tag_list' %}" class="btn btn-outline-secondary">
+                            {% trans "İptal" %}
+                        </a>
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-save me-1"></i>
+                            {% if form.instance.pk %}{% trans "Güncelle" %}{% else %}{% trans "Oluştur" %}{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

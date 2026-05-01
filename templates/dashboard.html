@@ -1,13 +1,14 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Ana Sayfa — Talep Yönetim Sistemi{% endblock %}
+{% block title %}{% trans "Ana Sayfa" %} — {% trans "Talep Yönetim Sistemi" %}{% endblock %}
 
 {% block content %}
 
 <!-- Hoş geldin başlığı -->
 <div class="mb-4">
     <h1 class="h4">
-        <i class="bi bi-house me-2"></i>Hoş geldiniz, {{ user.get_full_name|default:user.username }}
+        <i class="bi bi-house me-2"></i>{% blocktrans with name=user.get_full_name|default:user.username %}Hoş geldiniz, {{ name }}{% endblocktrans %}
     </h1>
     <small class="text-muted">
         {{ user.get_role_display }}
@@ -19,21 +20,21 @@
 {% if user.role == 'EMPLOYEE' %}
     <div class="row g-3 mb-4">
         <div class="col-4">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-primary mb-0">{{ my_open }}</div>
-                <small class="text-muted">Açık Taleplerim</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-primary mb-0">{{ my_open }}</div>
+                <small class="text-muted">{% trans "Açık Taleplerim" %}</small>
             </div>
         </div>
         <div class="col-4">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-warning mb-0">{{ my_in_progress }}</div>
-                <small class="text-muted">İşlemde</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-warning mb-0">{{ my_in_progress }}</div>
+                <small class="text-muted">{% trans "İşlemde" %}</small>
             </div>
         </div>
         <div class="col-4">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-secondary mb-0">{{ my_closed }}</div>
-                <small class="text-muted">Çözüldü</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-secondary mb-0">{{ my_closed }}</div>
+                <small class="text-muted">{% trans "Çözüldü" %}</small>
             </div>
         </div>
     </div>
@@ -42,7 +43,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Son Taleplerim</h6>
+                    <h6 class="text-muted mb-3">{% trans "Son Taleplerim" %}</h6>
                     {% if recent_tickets %}
                         <div class="list-group list-group-flush">
                             {% for t in recent_tickets %}
@@ -52,24 +53,24 @@
                                         <small class="text-muted d-block">{{ t.created_at|date:"d.m.Y" }}</small>
                                     </div>
                                     {% if t.status == 'OPEN' %}
-                                        <span class="badge bg-primary align-self-center">Açık</span>
+                                        <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
                                     {% elif t.status == 'IN_PROGRESS' %}
-                                        <span class="badge bg-warning text-dark align-self-center">İşlemde</span>
+                                        <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
                                     {% else %}
-                                        <span class="badge bg-secondary align-self-center">Kapalı</span>
+                                        <span class="badge bg-secondary align-self-center">{% trans "Kapalı" %}</span>
                                     {% endif %}
                                 </a>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Henüz talebiniz yok</p>
+                        <p class="text-muted text-center mb-0">{% trans "Henüz talebiniz yok" %}</p>
                     {% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
             <a href="{% url 'tickets:ticket_create' %}" class="btn btn-dark w-100 mb-3">
-                <i class="bi bi-plus-lg me-1"></i>Yeni Talep Oluştur
+                <i class="bi bi-plus-lg me-1"></i>{% trans "Yeni Bilet Oluştur" %}
             </a>
             {% include "partials/_recent_notifications.html" %}
         </div>
@@ -79,21 +80,21 @@
 {% elif user.role == 'AGENT' %}
     <div class="row g-3 mb-4">
         <div class="col-4">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-primary mb-0">{{ dept_open }}</div>
-                <small class="text-muted">Bekleyen Biletler</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-primary mb-0">{{ dept_open }}</div>
+                <small class="text-muted">{% trans "Bekleyen Biletler" %}</small>
             </div>
         </div>
         <div class="col-4">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-warning mb-0">{{ dept_in_progress }}</div>
-                <small class="text-muted">İşlemdeki</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-warning mb-0">{{ dept_in_progress }}</div>
+                <small class="text-muted">{% trans "İşlemdeki" %}</small>
             </div>
         </div>
         <div class="col-4">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-dark mb-0">{{ my_assigned|length }}</div>
-                <small class="text-muted">Üstlendiğim</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-body mb-0">{{ my_assigned|length }}</div>
+                <small class="text-muted">{% trans "Üstlendiğim" %}</small>
             </div>
         </div>
     </div>
@@ -102,7 +103,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Üstlendiğim Biletler</h6>
+                    <h6 class="text-muted mb-3">{% trans "Üstlendiğim Biletler" %}</h6>
                     {% if my_assigned %}
                         <div class="list-group list-group-flush">
                             {% for t in my_assigned %}
@@ -115,7 +116,7 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Üstlendiğiniz bilet yok</p>
+                        <p class="text-muted text-center mb-0">{% trans "Üstlendiğiniz bilet yok" %}</p>
                     {% endif %}
                 </div>
             </div>
@@ -123,7 +124,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Bekleyen Biletler (Havuz)</h6>
+                    <h6 class="text-muted mb-3">{% trans "Bekleyen Biletler (Havuz)" %}</h6>
                     {% if waiting_tickets %}
                         <div class="list-group list-group-flush">
                             {% for t in waiting_tickets %}
@@ -134,7 +135,7 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Bekleyen bilet yok</p>
+                        <p class="text-muted text-center mb-0">{% trans "Bekleyen bilet yok" %}</p>
                     {% endif %}
                 </div>
             </div>
@@ -142,7 +143,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Geçmişim (Kapalılar)</h6>
+                    <h6 class="text-muted mb-3">{% trans "Geçmişim (Kapalılar)" %}</h6>
                     {% if my_history %}
                         <div class="list-group list-group-flush">
                             {% for t in my_history %}
@@ -153,10 +154,40 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Geçmiş biletiniz yok</p>
+                        <p class="text-muted text-center mb-0">{% trans "Geçmiş biletiniz yok" %}</p>
                     {% endif %}
                 </div>
             </div>
+
+            {% if weekly_stats %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">
+                        <i class="bi bi-bar-chart me-1"></i>{% trans "Haftalık Kapanış" %}
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>{% trans "Hafta" %}</th><th class="text-center">{% trans "Kapanan" %}</th></tr></thead>
+                            <tbody>
+                                {% for w in weekly_stats %}
+                                    <tr>
+                                        <td><small>{{ w.week_start|date:"d.m" }} — {{ w.week_end|date:"d.m" }}</small></td>
+                                        <td class="text-center">
+                                            {% if w.count > 0 %}
+                                                <span class="badge bg-success">{{ w.count }}</span>
+                                            {% else %}
+                                                <span class="text-muted">0</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             {% include "partials/_recent_notifications.html" %}
         </div>
     </div>
@@ -165,27 +196,27 @@
 {% elif user.role == 'MANAGER' %}
     <div class="row g-3 mb-4">
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold mb-0">{{ dept_total }}</div>
-                <small class="text-muted">Toplam</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold mb-0">{{ dept_total }}</div>
+                <small class="text-muted">{% trans "Toplam" %}</small>
             </div>
         </div>
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-primary mb-0">{{ dept_open }}</div>
-                <small class="text-muted">Açık</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-primary mb-0">{{ dept_open }}</div>
+                <small class="text-muted">{% trans "Açık" %}</small>
             </div>
         </div>
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-warning mb-0">{{ dept_in_progress }}</div>
-                <small class="text-muted">İşlemde</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-warning mb-0">{{ dept_in_progress }}</div>
+                <small class="text-muted">{% trans "İşlemde" %}</small>
             </div>
         </div>
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-secondary mb-0">{{ dept_closed }}</div>
-                <small class="text-muted">Kapalı</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-secondary mb-0">{{ dept_closed }}</div>
+                <small class="text-muted">{% trans "Kapalı" %}</small>
             </div>
         </div>
     </div>
@@ -194,11 +225,11 @@
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Personel İş Yükü</h6>
+                    <h6 class="text-muted mb-3">{% trans "Personel İş Yükü" %}</h6>
                     {% if personnel_load %}
                         <div class="table-responsive">
                             <table class="table table-sm mb-0">
-                                <thead><tr><th>Personel</th><th class="text-center">Aktif Bilet</th></tr></thead>
+                                <thead><tr><th>{% trans "Personel" %}</th><th class="text-center">{% trans "Aktif Bilet" %}</th></tr></thead>
                                 <tbody>
                                     {% for p in personnel_load %}
                                         <tr>
@@ -216,7 +247,7 @@
                             </table>
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Personel bulunamadı</p>
+                        <p class="text-muted text-center mb-0">{% trans "Personel bulunamadı" %}</p>
                     {% endif %}
                 </div>
             </div>
@@ -224,7 +255,7 @@
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Son Biletler</h6>
+                    <h6 class="text-muted mb-3">{% trans "Son Biletler" %}</h6>
                     {% if recent_tickets %}
                         <div class="list-group list-group-flush">
                             {% for t in recent_tickets %}
@@ -234,17 +265,17 @@
                                         <small class="text-muted d-block">{{ t.sender.get_full_name|default:t.sender.username }}</small>
                                     </div>
                                     {% if t.status == 'OPEN' %}
-                                        <span class="badge bg-primary align-self-center">Açık</span>
+                                        <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
                                     {% elif t.status == 'IN_PROGRESS' %}
-                                        <span class="badge bg-warning text-dark align-self-center">İşlemde</span>
+                                        <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
                                     {% else %}
-                                        <span class="badge bg-secondary align-self-center">Kapalı</span>
+                                        <span class="badge bg-secondary align-self-center">{% trans "Kapalı" %}</span>
                                     {% endif %}
                                 </a>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Bilet yok</p>
+                        <p class="text-muted text-center mb-0">{% trans "Bilet yok" %}</p>
                     {% endif %}
                 </div>
             </div>
@@ -256,27 +287,27 @@
 {% elif user.role == 'ADMIN' %}
     <div class="row g-3 mb-4">
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold mb-0">{{ total_tickets }}</div>
-                <small class="text-muted">Toplam Bilet</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold mb-0">{{ total_tickets }}</div>
+                <small class="text-muted">{% trans "Toplam Bilet" %}</small>
             </div>
         </div>
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-primary mb-0">{{ total_open }}</div>
-                <small class="text-muted">Açık</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-primary mb-0">{{ total_open }}</div>
+                <small class="text-muted">{% trans "Açık" %}</small>
             </div>
         </div>
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-warning mb-0">{{ total_in_progress }}</div>
-                <small class="text-muted">İşlemde</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-warning mb-0">{{ total_in_progress }}</div>
+                <small class="text-muted">{% trans "İşlemde" %}</small>
             </div>
         </div>
         <div class="col-3">
-            <div class="card border-0 shadow-sm text-center py-3">
-                <div class="h3 fw-bold text-secondary mb-0">{{ total_closed }}</div>
-                <small class="text-muted">Kapalı</small>
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-secondary mb-0">{{ total_closed }}</div>
+                <small class="text-muted">{% trans "Kapalı" %}</small>
             </div>
         </div>
     </div>
@@ -285,11 +316,11 @@
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Departman Özeti</h6>
+                    <h6 class="text-muted mb-3">{% trans "Departman Özeti" %}</h6>
                     {% if dept_summary %}
                         <div class="table-responsive">
                             <table class="table table-sm mb-0">
-                                <thead><tr><th>Departman</th><th class="text-center">Açık</th><th class="text-center">Toplam</th></tr></thead>
+                                <thead><tr><th>{% trans "Departman" %}</th><th class="text-center">{% trans "Açık" %}</th><th class="text-center">{% trans "Toplam" %}</th></tr></thead>
                                 <tbody>
                                     {% for d in dept_summary %}
                                         <tr>
@@ -308,7 +339,7 @@
                             </table>
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Departman yok</p>
+                        <p class="text-muted text-center mb-0">{% trans "Departman yok" %}</p>
                     {% endif %}
                 </div>
             </div>
@@ -316,7 +347,7 @@
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-muted mb-3">Son Biletler (Sistem Geneli)</h6>
+                    <h6 class="text-muted mb-3">{% trans "Son Biletler (Sistem Geneli)" %}</h6>
                     {% if recent_tickets %}
                         <div class="list-group list-group-flush">
                             {% for t in recent_tickets %}
@@ -328,28 +359,28 @@
                                         </small>
                                     </div>
                                     {% if t.status == 'OPEN' %}
-                                        <span class="badge bg-primary align-self-center">Açık</span>
+                                        <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
                                     {% elif t.status == 'IN_PROGRESS' %}
-                                        <span class="badge bg-warning text-dark align-self-center">İşlemde</span>
+                                        <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
                                     {% else %}
-                                        <span class="badge bg-secondary align-self-center">Kapalı</span>
+                                        <span class="badge bg-secondary align-self-center">{% trans "Kapalı" %}</span>
                                     {% endif %}
                                 </a>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted text-center mb-0">Bilet yok</p>
+                        <p class="text-muted text-center mb-0">{% trans "Bilet yok" %}</p>
                     {% endif %}
                 </div>
             </div>
 
             <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-dark w-100 mt-3">
-                <i class="bi bi-bar-chart-line me-1"></i>Detaylı Raporlar
+                <i class="bi bi-bar-chart-line me-1"></i>{% trans "Detaylı Raporlar" %}
             </a>
 
             {% if pending_users_count %}
             <a href="{% url 'identity:user_list' %}" class="btn btn-warning w-100 mt-3 text-dark fw-bold">
-                <i class="bi bi-person-exclamation me-1"></i>{{ pending_users_count }} Onay Bekleyen Kullanıcı
+                <i class="bi bi-person-exclamation me-1"></i>{% blocktrans count counter=pending_users_count %}{{ counter }} Onay Bekleyen Kullanıcı{% plural %}{{ counter }} Onay Bekleyen Kullanıcı{% endblocktrans %}
             </a>
             {% endif %}
 

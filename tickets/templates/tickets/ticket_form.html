@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}
     {% if object %}Bilet Düzenle{% else %}Yeni Bilet{% endif %} — Talep Yönetim Sistemi
@@ -10,26 +11,26 @@
 
         <h1 class="h4 mb-4">
             {% if object %}
-                <i class="bi bi-pencil me-2"></i>Bilet #{{ object.pk }} Düzenle
+                <i class="bi bi-pencil me-2"></i>{% blocktrans with pk=object.pk %}Edit Ticket #{{ pk }}{% endblocktrans %}
             {% else %}
-                <i class="bi bi-plus-circle me-2"></i>Yeni Bilet Oluştur
+                <i class="bi bi-plus-circle me-2"></i>{% trans "Yeni Bilet Oluştur" %}
             {% endif %}
         </h1>
 
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
-                <form method="post" enctype="multipart/form-data" novalidate>
+                <form method="post" enctype="multipart/form-data" novalidate id="ticket-form">
                     {% csrf_token %}
 
                     <!-- Konu -->
                     <div class="mb-3">
-                        <label for="id_subject" class="form-label">Konu</label>
+                        <label for="id_subject" class="form-label">{% trans "Konu" %}</label>
                         <input type="text"
                                name="subject"
                                id="id_subject"
                                class="form-control {% if form.subject.errors %}is-invalid{% endif %}"
                                value="{{ form.subject.value|default:'' }}"
-                               placeholder="Talebin kısa başlığı"
+                               placeholder="{% trans 'Talebin kısa başlığı' %}"
                                required>
                         {% if form.subject.errors %}
                             <div class="invalid-feedback">{{ form.subject.errors.0 }}</div>
@@ -38,12 +39,12 @@
 
                     <!-- Departman -->
                     <div class="mb-3">
-                        <label for="id_department" class="form-label">Departman</label>
+                        <label for="id_department" class="form-label">{% trans "Departman" %}</label>
                         <select name="department"
                                 id="id_department"
                                 class="form-select {% if form.department.errors %}is-invalid{% endif %}"
                                 required>
-                            <option value="">Departman seçin...</option>
+                            <option value="">{% trans "Departman seçin..." %}</option>
                             {% for choice in form.department.field.queryset %}
                                 <option value="{{ choice.pk }}"
                                     {% if form.department.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>
@@ -58,12 +59,12 @@
 
                     <!-- Kategori (AJAX ile dinamik doldurulur) -->
                     <div class="mb-3">
-                        <label for="id_category" class="form-label">Kategori <small class="text-muted">(opsiyonel)</small></label>
+                        <label for="id_category" class="form-label">{% trans "Kategori" %} <small class="text-muted">{% trans "(opsiyonel)" %}</small></label>
                         <select name="category"
                                 id="id_category"
                                 class="form-select {% if form.category.errors %}is-invalid{% endif %}"
                                 {% if not form.department.value %}disabled{% endif %}>
-                            <option value="">{% if form.department.value %}Kategori seçin...{% else %}Önce departman seçin...{% endif %}</option>
+                            <option value="">{% if form.department.value %}{% trans "Kategori seçin..." %}{% else %}{% trans "Önce departman seçin..." %}{% endif %}</option>
                         </select>
                         {% if form.category.errors %}
                             <div class="invalid-feedback">{{ form.category.errors.0 }}</div>
@@ -72,7 +73,7 @@
 
                     <!-- Öncelik -->
                     <div class="mb-3">
-                        <label for="id_priority" class="form-label">Öncelik</label>
+                        <label for="id_priority" class="form-label">{% trans "Öncelik" %}</label>
                         <select name="priority"
                                 id="id_priority"
                                 class="form-select {% if form.priority.errors %}is-invalid{% endif %}">
@@ -88,50 +89,88 @@
                         {% endif %}
                     </div>
 
+                    <!-- Etiketler -->
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "Etiketler" %} <small class="text-muted">{% trans "(opsiyonel)" %}</small></label>
+                        <div class="d-flex flex-wrap gap-2 p-2 border rounded">
+                            {% for tag in form.tags.field.queryset %}
+                                <label class="d-inline-flex align-items-center" style="cursor:pointer;">
+                                    <input type="checkbox" name="tags" value="{{ tag.pk }}"
+                                           class="btn-check"
+                                           id="tag_{{ tag.pk }}"
+                                           {% if tag.pk in form.tags.value or tag in form.tags.value %}checked{% endif %}>
+                                    <span class="badge rounded-pill"
+                                          style="background-color: {{ tag.color }}; padding: .45em .8em; font-size: .85rem; border: 2px solid transparent;"
+                                          data-tag-pill="{{ tag.pk }}">
+                                        {{ tag.name }}
+                                    </span>
+                                </label>
+                            {% empty %}
+                                <small class="text-muted">{% trans "Henüz etiket tanımlanmamış (admin panelinden ekleyebilirsiniz)." %}</small>
+                            {% endfor %}
+                        </div>
+                        {% if form.tags.errors %}
+                            <div class="invalid-feedback d-block">{{ form.tags.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
                     <!-- Mesaj -->
                     <div class="mb-3">
-                        <label for="id_message" class="form-label">Mesaj</label>
+                        <label for="id_message" class="form-label">{% trans "Mesaj" %}</label>
                         <textarea name="message"
                                   id="id_message"
                                   class="form-control {% if form.message.errors %}is-invalid{% endif %}"
                                   rows="5"
-                                  placeholder="Talebinizi detaylı açıklayın..."
+                                  placeholder="{% trans 'Talebinizi detaylı açıklayın...' %}"
                                   required>{{ form.message.value|default:'' }}</textarea>
                         {% if form.message.errors %}
                             <div class="invalid-feedback">{{ form.message.errors.0 }}</div>
                         {% endif %}
                     </div>
 
-                    <!-- Dosya Eki -->
+                    <!-- Dosya Ekleri (çoklu) -->
                     <div class="mb-4">
-                        <label for="id_attachment" class="form-label">Dosya Eki <small class="text-muted">(opsiyonel)</small></label>
-                        {% if object and object.attachment %}
+                        <label for="id_attachments" class="form-label">
+                            {% trans "Dosya Ekleri" %} <small class="text-muted">{% trans "(opsiyonel — birden fazla dosya seçebilirsiniz)" %}</small>
+                        </label>
+
+                        {% if object and object.attachments.all %}
                             <div class="mb-2">
-                                <small class="text-muted">Mevcut dosya:</small>
-                                <a href="{{ object.attachment.url }}" class="text-decoration-none" target="_blank">
-                                    <i class="bi bi-paperclip me-1"></i>{{ object.attachment.name|cut:"ticket_attachments/" }}
-                                </a>
+                                <small class="text-muted d-block mb-1">{% trans "Mevcut ekler:" %}</small>
+                                <ul class="list-unstyled mb-0">
+                                    {% for att in object.attachments.all %}
+                                        <li class="mb-1">
+                                            <a href="{{ att.file.url }}" class="text-decoration-none" target="_blank">
+                                                <i class="bi bi-paperclip me-1"></i>{{ att.filename }}
+                                            </a>
+                                            <small class="text-muted ms-2">{{ att.uploaded_at|date:"d.m.Y" }}</small>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
                             </div>
                         {% endif %}
+
                         <input type="file"
-                               name="attachment"
-                               id="id_attachment"
-                               class="form-control">
+                               name="attachments"
+                               id="id_attachments"
+                               class="form-control"
+                               multiple>
+                        <small class="text-muted">{% trans "PDF, JPG, PNG, DOCX. Tek dosya için max 10 MB." %}</small>
                     </div>
 
                     <!-- Butonlar -->
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-dark">
                             {% if object %}
-                                <i class="bi bi-check-lg me-1"></i>Kaydet
+                                <i class="bi bi-check-lg me-1"></i>{% trans "Kaydet" %}
                             {% else %}
-                                <i class="bi bi-send me-1"></i>Gönder
+                                <i class="bi bi-send me-1"></i>{% trans "Gönder" %}
                             {% endif %}
                         </button>
                         {% if object %}
-                            <a href="{% url 'tickets:ticket_detail' object.pk %}" class="btn btn-outline-secondary">İptal</a>
+                            <a href="{% url 'tickets:ticket_detail' object.pk %}" class="btn btn-outline-secondary">{% trans "İptal" %}</a>
                         {% else %}
-                            <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary">İptal</a>
+                            <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary">{% trans "İptal" %}</a>
                         {% endif %}
                     </div>
                 </form>
@@ -187,5 +226,29 @@
     deptSelect.addEventListener('change', function () {
         loadCategories(this.value, '');
     });
+
+    // Etiket pill: checkbox state'ine göre görsel vurgu
+    document.querySelectorAll('input[name="tags"]').forEach(function (cb) {
+        const pill = document.querySelector('[data-tag-pill="' + cb.value + '"]');
+        function sync() {
+            if (!pill) return;
+            pill.style.opacity = cb.checked ? '1' : '0.45';
+            pill.style.borderColor = cb.checked ? '#212529' : 'transparent';
+        }
+        sync();
+        cb.addEventListener('change', sync);
+    });
+
+    // Çift tıklama korumalı submit (mükerrer bilet kaydını önler)
+    (function () {
+        const form = document.getElementById('ticket-form');
+        if (!form) return;
+        form.addEventListener('submit', function () {
+            if (form.dataset.submitting === '1') return;
+            form.dataset.submitting = '1';
+            const btns = form.querySelectorAll('button[type="submit"]');
+            btns.forEach(b => { b.disabled = true; b.classList.add('disabled'); });
+        });
+    })();
 </script>
 {% endblock %}

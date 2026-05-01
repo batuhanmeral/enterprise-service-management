@@ -29,12 +29,14 @@ class Notification(models.Model):
         verbose_name='Alıcı',
     )
 
-    # Bildirimi tetikleyen bilet
+    # Bildirimi tetikleyen bilet (sistem bildirimlerinde — örn. yeni kullanıcı kaydı — boş olabilir)
     ticket = models.ForeignKey(
         'tickets.Ticket',
-        on_delete=models.CASCADE, # Bilet silinirse bildirimleri de silinir
+        on_delete=models.CASCADE,  # Bilet silinirse bildirimleri de silinir
         related_name='notifications',
         verbose_name='İlgili Bilet',
+        null=True,
+        blank=True,
     )
 
     # Modelin admin paneli ve veritabanı davranışlarını belirleyen meta-veri sınıfı

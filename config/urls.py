@@ -12,6 +12,9 @@ from identity.api_urls import auth_urlpatterns, user_urlpatterns
 urlpatterns = [
     path('admin/', admin.site.urls),
 
+    # i18n: dil değiştirme (set_language POST endpoint'i)
+    path('i18n/', include('django.conf.urls.i18n')),
+
     # Mevcut SSR URL'ler
     path('', include('dashboard.urls')),
     path('identity/', include('identity.urls')),

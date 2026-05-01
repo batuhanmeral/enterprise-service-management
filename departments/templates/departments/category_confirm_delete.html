@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Kategori Sil — Talep Yönetim Sistemi{% endblock %}
 
@@ -7,22 +8,22 @@
     <div class="col-lg-5">
 
         <h1 class="h4 mb-4">
-            <i class="bi bi-trash me-2"></i>Kategori Sil
+            <i class="bi bi-trash me-2"></i>{% trans "Kategori Sil" %}
         </h1>
 
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
                 <div class="alert alert-danger mb-3">
                     <i class="bi bi-exclamation-triangle me-1"></i>
-                    <strong>"{{ category.name }}"</strong> kategorisini silmek istediğinize emin misiniz?
+                    {% blocktrans with name=category.name %}Are you sure you want to delete category <strong>"{{ name }}"</strong>?{% endblocktrans %}
                 </div>
 
                 <p class="text-muted small mb-3">
-                    Bu işlem geri alınamaz. Kategoriye bağlı biletlerdeki kategori bilgisi boş olacaktır.
+                    {% trans "Bu işlem geri alınamaz. Kategoriye bağlı biletlerdeki kategori bilgisi boş olacaktır." %}
                 </p>
 
                 <div class="mb-4">
-                    <small class="text-muted d-block">Departman</small>
+                    <small class="text-muted d-block">{% trans "Departman" %}</small>
                     <span class="fw-medium">{{ category.department.name }}</span>
                 </div>
 
@@ -30,9 +31,9 @@
                     {% csrf_token %}
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-trash me-1"></i>Evet, Sil
+                            <i class="bi bi-trash me-1"></i>{% trans "Evet, Sil" %}
                         </button>
-                        <a href="{% url 'departments:department_detail' category.department.pk %}" class="btn btn-outline-secondary">İptal</a>
+                        <a href="{% url 'departments:department_detail' category.department.pk %}" class="btn btn-outline-secondary">{% trans "İptal" %}</a>
                     </div>
                 </form>
             </div>

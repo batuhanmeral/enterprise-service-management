@@ -1,0 +1,65 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ESMS 1.1\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: 2026-05-04\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# === Sadece NAVBAR + footer çevirileri ===
+# Diğer template'lerdeki {% trans %} çağrıları msgstr boş olduğundan
+# Türkçe msgid'i gösterecektir. Sadece bu listedekiler İngilizceye çevrilir.
+
+msgid "Türkçe"
+msgstr "Turkish"
+
+msgid "English"
+msgstr "English"
+
+msgid "Ana Sayfa"
+msgstr "Home"
+
+msgid "Biletler"
+msgstr "Tickets"
+
+msgid "Kullanıcılar"
+msgstr "Users"
+
+msgid "Departmanım"
+msgstr "My Department"
+
+msgid "Departmanlar"
+msgstr "Departments"
+
+msgid "Raporlar"
+msgstr "Reports"
+
+msgid "Geçmiş"
+msgstr "History"
+
+msgid "İşlem Geçmişi"
+msgstr "Audit Log"
+
+msgid "Profil"
+msgstr "Profile"
+
+msgid "Çıkış"
+msgstr "Logout"
+
+msgid "Giriş"
+msgstr "Login"
+
+msgid "Dil Seçimi"
+msgstr "Language"
+
+msgid "Tema Değiştir"
+msgstr "Toggle Theme"
+
+msgid "Kurumsal Talep Yönetim Sistemi"
+msgstr "Enterprise Service Management System"
+
+msgid "Tüm hakları saklıdır."
+msgstr "All rights reserved."

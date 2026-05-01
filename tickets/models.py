@@ -35,15 +35,6 @@ class Ticket(models.Model):
         verbose_name='Mesaj',
     )
 
-    # Talebe eklenen dosya (isteğe bağlı)
-    attachment = models.FileField(
-        upload_to='ticket_attachments/%Y/%m/',
-        blank=True,
-        null=True,
-        verbose_name='Dosya Eki',
-        validators=[validate_file_extension, validate_file_size, validate_file_content],
-    )
-
     # Biletin mevcut durumu
     status = models.CharField(
         max_length=20,
@@ -125,6 +116,14 @@ class Ticket(models.Model):
         verbose_name='Kategori',
     )
 
+    # Bilete eklenen etiketler (M2M)
+    tags = models.ManyToManyField(
+        'Tag',
+        blank=True,
+        related_name='tickets',
+        verbose_name='Etiketler',
+    )
+
     # Modelin admin paneli ve veritabanı davranışlarını belirleyen meta-veri sınıfı
     class Meta:
         verbose_name = 'Bilet'
@@ -139,7 +138,13 @@ class Ticket(models.Model):
 
     # Model objesinin sistemde metin olarak nasıl temsil edileceğini belirleyen fonksiyon
     def __str__(self):
-        return f"[{self.get_status_display()}] {self.subject} (#{self.pk})"
+        return f"[{self.get_status_display()}] {self.subject} ({self.code})"
+
+    # İnsan-okur bilet kodu — TIC-0001, TIC-0002, ... (oluşturma sırasına denk gelir).
+    # pk auto-increment olduğundan eskiden yeniye doğru büyür; silinen kodlar yeniden kullanılmaz.
+    @property
+    def code(self):
+        return f'TIC-{self.pk:04d}'
 
     # Talebi personelin üzerine al, durumu İŞLEMDE yap
     def take_into_process(self, personnel):
@@ -174,6 +179,70 @@ class Ticket(models.Model):
         ])
 
 
+# Etiket — biletleri serbest biçimli kategorize etmek için (M2M).
+class Tag(models.Model):
+    name = models.CharField(max_length=40, unique=True, verbose_name='Etiket')
+    # CSS hex rengi — UI'da pill arka planı olarak kullanılır
+    color = models.CharField(
+        max_length=7, default='#6c757d',
+        verbose_name='Renk',
+        help_text='Hex format: #RRGGBB',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Etiket'
+        verbose_name_plural = 'Etiketler'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+# Bilet eki — bir bilete birden fazla dosya eklenebilir
+class TicketAttachment(models.Model):
+
+    ticket = models.ForeignKey(
+        'Ticket',
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='Bilet',
+    )
+
+    file = models.FileField(
+        upload_to='ticket_attachments/%Y/%m/',
+        validators=[validate_file_extension, validate_file_size, validate_file_content],
+        verbose_name='Dosya',
+    )
+
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='uploaded_attachments',
+        verbose_name='Yükleyen',
+    )
+
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Yükleme Tarihi',
+    )
+
+    class Meta:
+        verbose_name = 'Bilet Eki'
+        verbose_name_plural = 'Bilet Ekleri'
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        import os
+        return os.path.basename(self.file.name) if self.file else f'Ek #{self.pk}'
+
+    @property
+    def filename(self):
+        import os
+        return os.path.basename(self.file.name) if self.file else ''
+
+
 # Bilet yorum/mesajlaşma modeli — talep sahibi ile personel diyaloğu
 class TicketComment(models.Model):
 
@@ -195,6 +264,14 @@ class TicketComment(models.Model):
     content = models.TextField(
         max_length=2000,
         verbose_name='Yorum',
+        blank=True,
+    )
+
+    attachment = models.FileField(
+        upload_to='comment_attachments/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='Dosya Eki',
     )
 
     created_at = models.DateTimeField(

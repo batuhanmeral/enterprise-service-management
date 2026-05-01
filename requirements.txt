@@ -1,5 +1,7 @@
 Django==6.0.4                  # Ana web framework (ORM, admin, auth, template).
 djangorestframework==3.17.1    # REST API katmanı (ViewSet, Serializer, Token auth).
+djangorestframework-simplejwt==5.5.1  # JWT (access + refresh, blacklist) — SPA/mobile auth.
+PyJWT==2.12.1                  # simplejwt'nin alt bağımlılığı (JWT imzalama).
 django-filter==25.2            # DRF filtre backend'i (?status=OPEN, ?created_at__gte=...).
 drf-spectacular==0.29.0        # OpenAPI 3.0 + Swagger UI/ReDoc dokümantasyonu.
 django-cors-headers==4.9.0     # CORS başlıkları; SPA/mobile API erişimi için.

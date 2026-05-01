@@ -9,7 +9,9 @@ from rest_framework.generics import (
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from config.permissions import IsAdmin
 from .models import User, Role
@@ -20,23 +22,39 @@ from .serializers import (
 )
 
 
+# Brute-force koruma için endpoint-spesifik throttle scope'ları
+class LoginRateThrottle(AnonRateThrottle):
+    scope = 'login'
+
+
+class RegisterRateThrottle(AnonRateThrottle):
+    scope = 'register'
+
+
 # Kimlik Doğrulama
 
-# Kullanıcı girişi — Token döndürür
+# Kullanıcı girişi — JWT (access + refresh) ve legacy DRF token döndürür
 @extend_schema(
     tags=['auth'],
     request=LoginSerializer,
     responses={
         200: inline_serializer(
             name='LoginResponse',
-            fields={'token': serializers.CharField(), 'user': UserSerializer()},
+            fields={
+                'access': serializers.CharField(),
+                'refresh': serializers.CharField(),
+                'token': serializers.CharField(),  # geriye dönük uyumluluk
+                'user': UserSerializer(),
+            },
         ),
         401: OpenApiResponse(description='Geçersiz kullanıcı adı veya şifre.'),
         403: OpenApiResponse(description='Hesap admin onayı bekliyor.'),
+        429: OpenApiResponse(description='Çok fazla deneme — hız sınırı aşıldı.'),
     },
 )
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -47,9 +65,14 @@ class LoginAPIView(APIView):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            token, _ = Token.objects.get_or_create(user=user)
+            # JWT çifti üret (access kısa ömürlü, refresh uzun ömürlü)
+            refresh = RefreshToken.for_user(user)
+            # Legacy DRF token — geriye dönük uyumluluk için döndürülmeye devam
+            legacy_token, _ = Token.objects.get_or_create(user=user)
             return Response({
-                'token': token.key,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'token': legacy_token.key,
                 'user': UserSerializer(user).data,
             })
 
@@ -70,21 +93,46 @@ class LoginAPIView(APIView):
         )
 
 
-# Kullanıcı çıkışı — Token'ı siler
-@extend_schema(tags=['auth'], request=None, responses={200: OpenApiResponse(description='Çıkış yapıldı.')})
+# Kullanıcı çıkışı — Legacy token siler ve verilen refresh token'ı blacklist'e alır
+@extend_schema(
+    tags=['auth'],
+    request=inline_serializer(
+        name='LogoutRequest',
+        fields={'refresh': serializers.CharField(required=False)},
+    ),
+    responses={200: OpenApiResponse(description='Çıkış yapıldı.')},
+)
 class LogoutAPIView(APIView):
     def post(self, request):
-        # Kullanıcının token'ını sil
+        # Legacy DRF token'ı sil
         Token.objects.filter(user=request.user).delete()
+
+        # Refresh token verildiyse blacklist'e al (token rotation güvenliği)
+        refresh = request.data.get('refresh')
+        if refresh:
+            try:
+                RefreshToken(refresh).blacklist()
+            except Exception:
+                # Geçersiz / blacklist edilemeyen token — sessizce yut
+                pass
+
         return Response({'detail': 'Başarıyla çıkış yapıldı.'})
 
 
 # Kayıt (Register) — Admin Onaylı
 
 # Yeni kullanıcı kaydı — hesap pasif oluşturulur
-@extend_schema(tags=['auth'], request=RegisterSerializer, responses={201: OpenApiResponse(description='Kayıt başarılı, admin onayı bekleniyor.')})
+@extend_schema(
+    tags=['auth'],
+    request=RegisterSerializer,
+    responses={
+        201: OpenApiResponse(description='Kayıt başarılı, admin onayı bekleniyor.'),
+        429: OpenApiResponse(description='Çok fazla kayıt denemesi — hız sınırı aşıldı.'),
+    },
+)
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [RegisterRateThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)

@@ -1,0 +1,49 @@
+KURUMSAL TALEP YÖNETİM SİSTEMİ — KULLANICI HESAPLARI
+=====================================================
+Oluşturma: python manage.py seed_demo --reset
+
+1. SİSTEM YÖNETİCİSİ (ADMIN)
+-----------------------------------------------------
+Kullanıcı Adı : admin
+Ad Soyad      : Sistem Yöneticisi
+Şifre         : admin123
+E-posta       : admin@example.com
+
+2. DEPARTMAN YÖNETİCİLERİ (MANAGER) — Şifre: pass123
+-----------------------------------------------------
+ahmet.yildirim    Ahmet Yıldırım       Bilgi İşlem
+elif.karagoz      Elif Karagöz         İnsan Kaynakları
+mustafa.ozdemir   Mustafa Özdemir      Muhasebe
+ayse.cetin        Ayşe Çetin           İdari İşler
+hakan.arslan      Hakan Arslan         Pazarlama
+fatma.kocak       Fatma Koçak          Hukuk
+
+3. DEPARTMAN PERSONELLERİ (AGENT) — Şifre: pass123
+-----------------------------------------------------
+burak.sahin       Burak Şahin          Bilgi İşlem
+zeynep.aydin      Zeynep Aydın         Bilgi İşlem
+emre.yilmaz       Emre Yılmaz          İnsan Kaynakları
+selin.demir       Selin Demir          İnsan Kaynakları
+oguz.kaya         Oğuz Kaya            Muhasebe
+merve.aksoy       Merve Aksoy          Muhasebe
+cem.polat         Cem Polat            İdari İşler
+deniz.eren        Deniz Eren           İdari İşler
+tolga.celik       Tolga Çelik          Pazarlama
+busra.kurt        Büşra Kurt           Pazarlama
+murat.dogan       Murat Doğan          Hukuk
+i̇rem.acar        İrem Acar            Hukuk
+
+4. ÇALIŞANLAR (EMPLOYEE) — Şifre: pass123
+-----------------------------------------------------
+ali.korkmaz       Ali Korkmaz          İdari İşler       ⏳ Onay Bekliyor
+esra.yalcin       Esra Yalçın          İdari İşler       ⏳ Onay Bekliyor
+serkan.ozturk     Serkan Öztürk        Bilgi İşlem       ✓ Aktif
+gamze.kaplan      Gamze Kaplan         Hukuk             ✓ Aktif
+onur.gunes        Onur Güneş           Muhasebe          ✓ Aktif
+derya.avci        Derya Avcı           İnsan Kaynakları  ✓ Aktif
+kadir.cakir       Kadir Çakır          Muhasebe          ✓ Aktif
+sibel.sen         Sibel Şen            Bilgi İşlem       ✓ Aktif
+ufuk.aktas        Ufuk Aktaş           Bilgi İşlem       ✓ Aktif
+neslihan.koc      Neslihan Koç         Muhasebe          ✓ Aktif
+baris.yildiz      Barış Yıldız         Bilgi İşlem       ✓ Aktif
+pinar.bozkurt     Pınar Bozkurt        Pazarlama         ✓ Aktif

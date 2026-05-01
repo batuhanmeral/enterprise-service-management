@@ -1,35 +1,43 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Biletler — Talep Yönetim Sistemi{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h4 mb-0">
-        <i class="bi bi-list-task me-2"></i>Biletler
+        <i class="bi bi-list-task me-2"></i>{% trans "Biletler" %}
     </h1>
-    <a href="{% url 'tickets:ticket_create' %}" class="btn btn-dark">
-        <i class="bi bi-plus-lg me-1"></i>Yeni Bilet Oluştur
-    </a>
+    <div class="d-flex gap-2">
+        {% if user.role == 'ADMIN' %}
+            <a href="{% url 'tickets:tag_list' %}" class="btn btn-outline-dark">
+                <i class="bi bi-tags me-1"></i>{% trans "Etiketleri Yönet" %}
+            </a>
+        {% endif %}
+        <a href="{% url 'tickets:ticket_create' %}" class="btn btn-dark">
+            <i class="bi bi-plus-lg me-1"></i>{% trans "Yeni Bilet Oluştur" %}
+        </a>
+    </div>
 </div>
 
 <!-- Filtre ve Sıralama -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body py-3">
         <form method="get" class="row g-2 align-items-end">
-            <!-- Durum filtresi -->
+            {# Satır 1: Durum, Öncelik, Departman, Kategori #}
+
             <div class="col-md-3">
-                <label for="filter_status" class="form-label small text-muted mb-1">Durum</label>
+                <label for="filter_status" class="form-label small text-muted mb-1">{% trans "Durum" %}</label>
                 <select name="status" id="filter_status" class="form-select form-select-sm">
-                    <option value="">Tümü</option>
+                    <option value="">{% trans "Tümü" %}</option>
                     {% for value, label in status_choices %}
                         <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
 
-            <!-- Öncelik filtresi -->
             <div class="col-md-3">
-                <label for="filter_priority" class="form-label small text-muted mb-1">Öncelik</label>
+                <label for="filter_priority" class="form-label small text-muted mb-1">{% trans "Öncelik" %}</label>
                 <select name="priority" id="filter_priority" class="form-select form-select-sm">
                     <option value="">Tümü</option>
                     {% for value, label in priority_choices %}
@@ -38,22 +46,94 @@
                 </select>
             </div>
 
-            <!-- Sıralama -->
             <div class="col-md-3">
-                <label for="filter_sort" class="form-label small text-muted mb-1">Sıralama</label>
-                <select name="sort" id="filter_sort" class="form-select form-select-sm">
-                    <option value="-created_at" {% if current_sort == '-created_at' %}selected{% endif %}>En Yeni</option>
-                    <option value="created_at" {% if current_sort == 'created_at' %}selected{% endif %}>En Eski</option>
-                    <option value="priority" {% if current_sort == 'priority' %}selected{% endif %}>Öncelik</option>
-                    <option value="status" {% if current_sort == 'status' %}selected{% endif %}>Durum</option>
-                    <option value="subject" {% if current_sort == 'subject' %}selected{% endif %}>Konu (A-Z)</option>
+                <label for="filter_department" class="form-label small text-muted mb-1">{% trans "Departman" %}</label>
+                {% if departments %}
+                    <select name="department" id="filter_department" class="form-select form-select-sm">
+                        <option value="">Tümü</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                {% else %}
+                    {# AGENT/MANAGER zaten kendi departmanına kısıtlı; salt-okunur gösterim #}
+                    <input type="text" class="form-select form-select-sm" disabled
+                           value="{{ user.department.name|default:'—' }}">
+                {% endif %}
+            </div>
+
+            <div class="col-md-3">
+                <label for="filter_category" class="form-label small text-muted mb-1">{% trans "Kategori" %}</label>
+                <select name="category" id="filter_category" class="form-select form-select-sm" disabled>
+                    <option value="">Tümü</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.pk }}"
+                                data-department="{{ cat.department_id }}"
+                                {% if current_category == cat.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ cat.department.name }} - {{ cat.name }}
+                        </option>
+                    {% endfor %}
                 </select>
             </div>
 
-            <!-- Filtrele butonu -->
+            {# Satır 2: Açan, Üstlenen, Sıralama, Filtrele butonu #}
+
+            {% if filter_users %}
+                <div class="col-md-3">
+                    <label for="filter_sender" class="form-label small text-muted mb-1">{% trans "Açan" %}</label>
+                    <select name="sender" id="filter_sender" class="form-select form-select-sm">
+                        <option value="">Tümü</option>
+                        {% for u in filter_users %}
+                            <option value="{{ u.pk }}"
+                                    data-department="{{ u.department_id|default_if_none:'' }}"
+                                    {% if current_sender == u.pk|stringformat:"s" %}selected{% endif %}>
+                                {% if u.department %}{{ u.department.name }} - {% endif %}{{ u.get_full_name|default:u.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="filter_assigned_to" class="form-label small text-muted mb-1">{% trans "Üstlenen" %}</label>
+                    <select name="assigned_to" id="filter_assigned_to" class="form-select form-select-sm">
+                        <option value="">Tümü</option>
+                        {% for u in assignee_users %}
+                            <option value="{{ u.pk }}"
+                                    data-department="{{ u.department_id|default_if_none:'' }}"
+                                    {% if current_assigned_to == u.pk|stringformat:"s" %}selected{% endif %}>
+                                {% if u.department %}{{ u.department.name }} - {% endif %}{{ u.get_full_name|default:u.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endif %}
+
+            <div class="col-md-3">
+                <label for="filter_tag" class="form-label small text-muted mb-1">{% trans "Etiket" %}</label>
+                <select name="tag" id="filter_tag" class="form-select form-select-sm">
+                    <option value="">Tümü</option>
+                    {% for tag in tags %}
+                        <option value="{{ tag.pk }}" {% if current_tag == tag.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ tag.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label for="filter_sort" class="form-label small text-muted mb-1">{% trans "Sıralama" %}</label>
+                <select name="sort" id="filter_sort" class="form-select form-select-sm">
+                    <option value="-created_at" {% if current_sort == '-created_at' %}selected{% endif %}>{% trans "En Yeni" %}</option>
+                    <option value="created_at" {% if current_sort == 'created_at' %}selected{% endif %}>{% trans "En Eski" %}</option>
+                    <option value="priority" {% if current_sort == 'priority' %}selected{% endif %}>{% trans "Öncelik" %}</option>
+                    <option value="status" {% if current_sort == 'status' %}selected{% endif %}>{% trans "Durum" %}</option>
+                    <option value="subject" {% if current_sort == 'subject' %}selected{% endif %}>{% trans "Konu (A-Z)" %}</option>
+                </select>
+            </div>
+
             <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-dark btn-sm w-100">
-                    <i class="bi bi-funnel me-1"></i>Filtrele
+                    <i class="bi bi-funnel me-1"></i>{% trans "Filtrele" %}
                 </button>
                 <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-x-lg"></i>
@@ -64,30 +144,84 @@
 </div>
 
 {% if tickets %}
+    {% if can_bulk_action %}
+        <form method="post" action="{% url 'tickets:ticket_bulk_action' %}"
+              id="ticket-bulk-form" onsubmit="return confirmTicketBulk();">
+            {% csrf_token %}
+            <div class="d-flex align-items-end gap-2 mb-3 flex-wrap">
+                <div>
+                    <label for="ticket_bulk_action" class="form-label small text-muted mb-1">{% trans "Toplu İşlem" %}</label>
+                    <select name="action" id="ticket_bulk_action" class="form-select form-select-sm" style="min-width:230px;">
+                        <option value="">{% trans "— İşlem seçin —" %}</option>
+                        <option value="close">{% trans "Kapat" %}</option>
+                        <option value="reopen">{% trans "Yeniden Aç" %}</option>
+                        <option value="delete">{% trans "Sil" %}</option>
+                        <optgroup label="{% trans 'Önceliği Değiştir' %}">
+                            {% for value, label in priority_choices %}
+                                <option value="priority:{{ value }}">→ {{ label }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-dark btn-sm">
+                    <i class="bi bi-lightning-charge me-1"></i>{% trans "Uygula" %}
+                </button>
+                <small class="text-muted ms-2 align-self-center">
+                    <span id="ticket-selected-count">0</span> {% trans "bilet seçili" %}
+                </small>
+            </div>
+        </form>
+    {% endif %}
+
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-dark">
                 <tr>
+                    {% if can_bulk_action %}
+                        <th style="width:36px;">
+                            <input type="checkbox" class="form-check-input" id="ticket-select-all" form="ticket-bulk-form" title="{% trans 'Tümünü seç' %}">
+                        </th>
+                    {% endif %}
                     <th>#</th>
-                    <th>Konu</th>
-                    <th>Departman</th>
-                    <th>Öncelik</th>
-                    <th>Durum</th>
-                    <th>Oluşturulma Tarihi</th>
+                    <th>{% trans "Konu" %}</th>
+                    <th>{% trans "Departman" %}</th>
+                    <th>{% trans "Kategori" %}</th>
+                    <th>{% trans "Açan" %}</th>
+                    <th>{% trans "Üstlenen" %}</th>
+                    <th>{% trans "Öncelik" %}</th>
+                    <th>{% trans "Durum" %}</th>
+                    <th>{% trans "Oluşturulma Tarihi" %}</th>
+                    <th>{% trans "Kapatılma Tarihi" %}</th>
+                    <th>{% trans "Çözüm Süresi" %}</th>
                 </tr>
             </thead>
             <tbody>
                 {% for ticket in tickets %}
                     <tr>
+                        {% if can_bulk_action %}
+                            <td>
+                                <input type="checkbox" name="ticket_ids" value="{{ ticket.pk }}"
+                                       class="form-check-input ticket-row-check" form="ticket-bulk-form">
+                            </td>
+                        {% endif %}
                         <td>
                             <a href="{% url 'tickets:ticket_detail' ticket.pk %}" class="text-decoration-none fw-medium">
-                                {{ ticket.pk }}
+                                {{ ticket.code }}
                             </a>
                         </td>
                         <td>
-                            <a href="{% url 'tickets:ticket_detail' ticket.pk %}" class="text-decoration-none text-dark">
+                            <a href="{% url 'tickets:ticket_detail' ticket.pk %}" class="text-decoration-none text-body fw-medium">
                                 {{ ticket.subject }}
                             </a>
+                            {% if ticket.tags.all %}
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for tag in ticket.tags.all %}
+                                        <span class="badge rounded-pill" style="background-color: {{ tag.color }}; font-size:.7rem; padding:.25em .55em;">
+                                            {{ tag.name }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </td>
                         <td>
                             {% if ticket.department %}
@@ -97,27 +231,62 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if ticket.category %}
+                                {{ ticket.category.name }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.sender %}
+                                {{ ticket.sender.get_full_name|default:ticket.sender.username }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.assigned_to %}
+                                {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.username }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             {% if ticket.priority == 'URGENT' %}
-                                <span class="badge bg-danger">Acil</span>
+                                <span class="badge bg-danger">{% trans "Acil" %}</span>
                             {% elif ticket.priority == 'HIGH' %}
-                                <span class="badge bg-warning text-dark">Yüksek</span>
+                                <span class="badge bg-warning text-dark">{% trans "Yüksek" %}</span>
                             {% elif ticket.priority == 'NORMAL' %}
-                                <span class="badge bg-secondary">Normal</span>
+                                <span class="badge bg-secondary">{% trans "Normal" %}</span>
                             {% elif ticket.priority == 'LOW' %}
-                                <span class="badge bg-light text-dark border">Düşük</span>
+                                <span class="badge bg-light text-dark border">{% trans "Düşük" %}</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if ticket.status == 'OPEN' %}
-                                <span class="badge bg-primary">Açık</span>
+                                <span class="badge bg-primary">{% trans "Açık" %}</span>
                             {% elif ticket.status == 'IN_PROGRESS' %}
-                                <span class="badge bg-warning text-dark">İşlemde</span>
+                                <span class="badge bg-warning text-dark">{% trans "İşlemde" %}</span>
                             {% elif ticket.status == 'CLOSED' %}
-                                <span class="badge bg-secondary">Kapalı</span>
+                                <span class="badge bg-secondary">{% trans "Kapalı" %}</span>
                             {% endif %}
                         </td>
                         <td class="text-muted">
                             {{ ticket.created_at|date:"d.m.Y H:i" }}
+                        </td>
+                        <td class="text-muted">
+                            {% if ticket.closed_at %}
+                                {{ ticket.closed_at|date:"d.m.Y H:i" }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">
+                            {% if ticket.closed_at %}
+                                {{ ticket.created_at|timesince:ticket.closed_at }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
                         </td>
                     </tr>
                 {% endfor %}
@@ -131,7 +300,7 @@
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ current_status }}&priority={{ current_priority }}&sort={{ current_sort }}">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-left"></i>
                         </a>
                     </li>
@@ -139,13 +308,13 @@
 
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&status={{ current_status }}&priority={{ current_priority }}&sort={{ current_sort }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&sort={{ current_sort }}">{{ num }}</a>
                     </li>
                 {% endfor %}
 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ current_status }}&priority={{ current_priority }}&sort={{ current_sort }}">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>
@@ -157,10 +326,105 @@
 {% else %}
     <div class="text-center text-muted py-5">
         <i class="bi bi-inbox display-4 d-block mb-3"></i>
-        <p>Henüz bilet bulunmuyor.</p>
+        <p>{% trans "Henüz bilet bulunmuyor." %}</p>
         <a href="{% url 'tickets:ticket_create' %}" class="btn btn-outline-dark btn-sm">
-            İlk bileti oluştur
+            {% trans "İlk bileti oluştur" %}
         </a>
     </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{# Departman seçimine göre Kategori / Açan / Üstlenen dropdown'larını dinamik filtrele #}
+<script>
+(function () {
+    const deptSelect = document.getElementById('filter_department');
+    const categorySelect = document.getElementById('filter_category');
+    const senderSelect = document.getElementById('filter_sender');
+    const assignedSelect = document.getElementById('filter_assigned_to');
+
+    // Hepsi yoksa hiç bir şey yapma (EMPLOYEE rolü)
+    if (!categorySelect && !senderSelect && !assignedSelect) return;
+
+    // Departman seçimine bağlı select'leri filtrele.
+    // Kategori: departman seçilmeden tıklanamaz (kullanıcı talebi).
+    // Sender/Assigned: departman seçildiğinde kapsamı daralır.
+    function applyFilter() {
+        const deptId = deptSelect ? deptSelect.value : '';
+
+        // Kategori: departman seçili değilse disabled + "Tümü"ye sıfırla
+        if (categorySelect) {
+            if (!deptId) {
+                categorySelect.disabled = true;
+                categorySelect.value = '';
+            } else {
+                categorySelect.disabled = false;
+            }
+        }
+
+        const targets = [categorySelect, senderSelect, assignedSelect].filter(el => el !== null);
+        targets.forEach(sel => {
+            let currentValid = false;
+            Array.from(sel.options).forEach(opt => {
+                if (opt.value === '') {  // 'Tümü' her zaman görünür
+                    opt.hidden = false;
+                    return;
+                }
+                const optDept = opt.getAttribute('data-department') || '';
+                const visible = !deptId || optDept === deptId;
+                opt.hidden = !visible;
+                opt.disabled = !visible;
+                if (visible && opt.selected) currentValid = true;
+            });
+            if (!currentValid && sel.value !== '') {
+                sel.value = '';
+            }
+        });
+    }
+
+    if (deptSelect) {
+        deptSelect.addEventListener('change', applyFilter);
+    }
+    // Sayfa yüklenirken URL'den gelen departman varsa hemen uygula
+    applyFilter();
+})();
+
+// Bilet toplu işlem: select-all + sayaç + onay
+(function () {
+    const selectAll = document.getElementById('ticket-select-all');
+    const rowChecks = document.querySelectorAll('.ticket-row-check');
+    const counter = document.getElementById('ticket-selected-count');
+    if (!rowChecks.length) return;
+
+    function updateCount() {
+        if (counter) counter.textContent = document.querySelectorAll('.ticket-row-check:checked').length;
+    }
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            rowChecks.forEach(cb => { cb.checked = selectAll.checked; });
+            updateCount();
+        });
+    }
+    rowChecks.forEach(cb => cb.addEventListener('change', updateCount));
+    updateCount();
+})();
+
+function confirmTicketBulk() {
+    const select = document.getElementById('ticket_bulk_action');
+    const action = select.value;
+    if (!action) { alert('Lütfen bir işlem seçin.'); return false; }
+    const n = document.querySelectorAll('.ticket-row-check:checked').length;
+    if (n === 0) { alert('Lütfen en az bir bilet seçin.'); return false; }
+    const labelMap = {
+        close: 'kapatmak',
+        reopen: 'yeniden açmak',
+        delete: 'silmek',
+    };
+    let label = labelMap[action];
+    if (!label && action.startsWith('priority:')) {
+        label = `önceliğini "${select.options[select.selectedIndex].text.replace('→ ', '')}" yapmak`;
+    }
+    return confirm(`${n} bileti ${label} istediğinize emin misiniz?`);
+}
+</script>
 {% endblock %}

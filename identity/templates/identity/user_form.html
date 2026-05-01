@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}
     {% if profile_user %}Kullanıcı Düzenle{% else %}Yeni Kullanıcı{% endif %} — Talep Yönetim Sistemi
@@ -10,9 +11,9 @@
 
         <h1 class="h4 mb-4">
             {% if profile_user %}
-                <i class="bi bi-pencil me-2"></i>Kullanıcıyı Düzenle
+                <i class="bi bi-pencil me-2"></i>{% trans "Kullanıcıyı Düzenle" %}
             {% else %}
-                <i class="bi bi-person-plus me-2"></i>Yeni Kullanıcı Ekle
+                <i class="bi bi-person-plus me-2"></i>{% trans "Yeni Kullanıcı Ekle" %}
             {% endif %}
         </h1>
 
@@ -23,13 +24,13 @@
 
                     <!-- Kullanıcı Adı -->
                     <div class="mb-3">
-                        <label for="id_username" class="form-label">Kullanıcı Adı</label>
+                        <label for="id_username" class="form-label">{% trans "Kullanıcı Adı" %}</label>
                         <input type="text"
                                name="username"
                                id="id_username"
                                class="form-control {% if form.username.errors %}is-invalid{% endif %}"
                                value="{{ form.username.value|default:'' }}"
-                               placeholder="kullanici_adi"
+                               placeholder="{% trans 'kullanici_adi' %}"
                                required>
                         {% if form.username.errors %}
                             <div class="invalid-feedback">{{ form.username.errors.0 }}</div>
@@ -39,12 +40,12 @@
                     {% if not profile_user %}
                         <!-- Şifre (sadece oluşturmada) -->
                         <div class="mb-3">
-                            <label for="id_password" class="form-label">Şifre</label>
+                            <label for="id_password" class="form-label">{% trans "Şifre" %}</label>
                             <input type="password"
                                    name="password"
                                    id="id_password"
                                    class="form-control {% if form.password.errors %}is-invalid{% endif %}"
-                                   placeholder="Şifre belirleyin"
+                                   placeholder="{% trans 'Şifre belirleyin' %}"
                                    required>
                             {% if form.password.errors %}
                                 <div class="invalid-feedback">{{ form.password.errors.0 }}</div>
@@ -55,30 +56,30 @@
                     <div class="row g-3 mb-3">
                         <!-- Ad -->
                         <div class="col-sm-6">
-                            <label for="id_first_name" class="form-label">Ad</label>
+                            <label for="id_first_name" class="form-label">{% trans "Ad" %}</label>
                             <input type="text"
                                    name="first_name"
                                    id="id_first_name"
                                    class="form-control"
                                    value="{{ form.first_name.value|default:'' }}"
-                                   placeholder="Adı">
+                                   placeholder="{% trans 'Adı' %}">
                         </div>
                         <!-- Soyad -->
                         <div class="col-sm-6">
-                            <label for="id_last_name" class="form-label">Soyad</label>
+                            <label for="id_last_name" class="form-label">{% trans "Soyad" %}</label>
                             <input type="text"
                                    name="last_name"
                                    id="id_last_name"
                                    class="form-control"
                                    value="{{ form.last_name.value|default:'' }}"
-                                   placeholder="Soyadı">
+                                   placeholder="{% trans 'Soyadı' %}">
                         </div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <!-- E-posta -->
                         <div class="col-sm-6">
-                            <label for="id_email" class="form-label">E-posta</label>
+                            <label for="id_email" class="form-label">{% trans "E-posta" %}</label>
                             <input type="email"
                                    name="email"
                                    id="id_email"
@@ -88,7 +89,7 @@
                         </div>
                         <!-- Telefon -->
                         <div class="col-sm-6">
-                            <label for="id_phone" class="form-label">Telefon</label>
+                            <label for="id_phone" class="form-label">{% trans "Telefon" %}</label>
                             <input type="text"
                                    name="phone"
                                    id="id_phone"
@@ -101,7 +102,7 @@
                     <div class="row g-3 mb-3">
                         <!-- Rol -->
                         <div class="col-sm-6">
-                            <label for="id_role" class="form-label">Rol</label>
+                            <label for="id_role" class="form-label">{% trans "Rol" %}</label>
                             <select name="role"
                                     id="id_role"
                                     class="form-select {% if form.role.errors %}is-invalid{% endif %}"
@@ -119,11 +120,11 @@
                         </div>
                         <!-- Departman -->
                         <div class="col-sm-6">
-                            <label for="id_department" class="form-label">Departman</label>
+                            <label for="id_department" class="form-label">{% trans "Departman" %}</label>
                             <select name="department"
                                     id="id_department"
                                     class="form-select">
-                                <option value="">Departman seçin...</option>
+                                <option value="">{% trans "Departman seçin..." %}</option>
                                 {% for choice in form.department.field.queryset %}
                                     <option value="{{ choice.pk }}"
                                         {% if form.department.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>
@@ -143,7 +144,7 @@
                                        id="id_is_active"
                                        class="form-check-input"
                                        {% if form.is_active.value %}checked{% endif %}>
-                                <label for="id_is_active" class="form-check-label">Aktif Kullanıcı</label>
+                                <label for="id_is_active" class="form-check-label">{% trans "Aktif Kullanıcı" %}</label>
                             </div>
                         </div>
                     {% endif %}
@@ -151,12 +152,12 @@
                     <!-- Butonlar -->
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-dark">
-                            <i class="bi bi-check-lg me-1"></i>Kaydet
+                            <i class="bi bi-check-lg me-1"></i>{% trans "Kaydet" %}
                         </button>
                         {% if profile_user %}
-                            <a href="{% url 'identity:user_detail' profile_user.pk %}" class="btn btn-outline-secondary">İptal</a>
+                            <a href="{% url 'identity:user_detail' profile_user.pk %}" class="btn btn-outline-secondary">{% trans "İptal" %}</a>
                         {% else %}
-                            <a href="{% url 'identity:user_list' %}" class="btn btn-outline-secondary">İptal</a>
+                            <a href="{% url 'identity:user_list' %}" class="btn btn-outline-secondary">{% trans "İptal" %}</a>
                         {% endif %}
                     </div>
                 </form>

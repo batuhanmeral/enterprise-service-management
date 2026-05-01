@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Bildirim #{{ notification.pk }} — Talep Yönetim Sistemi{% endblock %}
 
@@ -7,7 +8,7 @@
     <div class="col-lg-7">
 
         <h1 class="h4 mb-4">
-            <i class="bi bi-bell me-2"></i>Bildirim Detayı
+            <i class="bi bi-bell me-2"></i>{% trans "Bildirim Detayı" %}
         </h1>
 
         <div class="card border-0 shadow-sm mb-4">
@@ -20,20 +21,20 @@
                 <!-- Meta bilgileri -->
                 <div class="row g-3">
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Tarih</small>
+                        <small class="text-muted d-block">{% trans "Tarih" %}</small>
                         <span><i class="bi bi-clock me-1"></i>{{ notification.created_at|date:"d.m.Y H:i" }}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Durum</small>
+                        <small class="text-muted d-block">{% trans "Durum" %}</small>
                         {% if notification.is_read %}
-                            <span class="badge bg-secondary">Okundu</span>
+                            <span class="badge bg-secondary">{% trans "Okundu" %}</span>
                         {% else %}
-                            <span class="badge bg-primary">Okunmadı</span>
+                            <span class="badge bg-primary">{% trans "Okunmadı" %}</span>
                         {% endif %}
                     </div>
                     {% if notification.ticket %}
                         <div class="col-sm-6">
-                            <small class="text-muted d-block">İlgili Bilet</small>
+                            <small class="text-muted d-block">{% trans "İlgili Bilet" %}</small>
                             <a href="{% url 'tickets:ticket_detail' notification.ticket.pk %}" class="text-decoration-none">
                                 <i class="bi bi-ticket-perforated me-1"></i>{{ notification.ticket.subject }} (#{{ notification.ticket.pk }})
                             </a>
@@ -47,18 +48,18 @@
         <div class="d-flex gap-2">
             {% if notification.ticket %}
                 <a href="{% url 'tickets:ticket_detail' notification.ticket.pk %}" class="btn btn-dark">
-                    <i class="bi bi-ticket-perforated me-1"></i>Bilete Git
+                    <i class="bi bi-ticket-perforated me-1"></i>{% trans "Bilete Git" %}
                 </a>
             {% endif %}
             <form method="post" action="{% url 'notifications:notification_delete' notification.pk %}"
                   onsubmit="return confirm('Bu bildirimi silmek istediğinize emin misiniz?');">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-danger">
-                    <i class="bi bi-trash me-1"></i>Sil
+                    <i class="bi bi-trash me-1"></i>{% trans "Sil" %}
                 </button>
             </form>
             <a href="{% url 'notifications:notification_list' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i>Bildirimlere Dön
+                <i class="bi bi-arrow-left me-1"></i>{% trans "Bildirimlere Dön" %}
             </a>
         </div>
 

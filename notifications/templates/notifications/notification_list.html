@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Bildirimler — Talep Yönetim Sistemi{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h4 mb-0">
-        <i class="bi bi-bell me-2"></i>Bildirimler
+        <i class="bi bi-bell me-2"></i>{% trans "Bildirimler" %}
         {% if unread_count %}
             <span class="badge bg-danger ms-1">{{ unread_count }}</span>
         {% endif %}
@@ -14,7 +15,7 @@
         <form method="post" action="{% url 'notifications:notification_mark_all_read' %}">
             {% csrf_token %}
             <button type="submit" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-check-all me-1"></i>Tümünü Okundu İşaretle
+                <i class="bi bi-check-all me-1"></i>{% trans "Tümünü Okundu İşaretle" %}
             </button>
         </form>
     {% endif %}
@@ -23,16 +24,16 @@
 {% if notifications %}
     <div class="list-group">
         {% for notification in notifications %}
-            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-start {% if not notification.is_read %}bg-white border-start border-primary border-3{% else %}bg-light{% endif %}">
+            <div class="list-group-item d-flex justify-content-between align-items-start notification-item {% if not notification.is_read %}notification-unread border-start border-primary border-3{% else %}notification-read{% endif %}">
                 <div class="me-3">
-                    <div class="{% if not notification.is_read %}fw-medium{% else %}text-muted{% endif %}">
+                    <div class="{% if not notification.is_read %}fw-medium{% else %}notification-read-text{% endif %}">
                         {{ notification.message }}
                     </div>
                     <small class="text-muted">
                         <i class="bi bi-clock me-1"></i>{{ notification.created_at|date:"d.m.Y H:i" }}
                         {% if notification.ticket %}
                             · <a href="{% url 'tickets:ticket_detail' notification.ticket.pk %}" class="text-decoration-none">
-                                Bilet #{{ notification.ticket.pk }}
+                                {% blocktrans with pk=notification.ticket.pk %}Ticket #{{ pk }}{% endblocktrans %}
                             </a>
                         {% endif %}
                     </small>
@@ -40,13 +41,13 @@
                 <div class="flex-shrink-0 d-flex gap-1">
                     <a href="{% url 'notifications:notification_detail' notification.pk %}"
                        class="btn btn-sm btn-outline-dark"
-                       title="Detay">
+                       title="{% trans 'Detay' %}">
                         <i class="bi bi-eye"></i>
                     </a>
                     {% if not notification.is_read %}
                         <a href="{% url 'notifications:notification_mark_read' notification.pk %}"
                            class="btn btn-sm btn-outline-secondary"
-                           title="Okundu işaretle">
+                           title="{% trans 'Okundu işaretle' %}">
                             <i class="bi bi-check"></i>
                         </a>
                     {% else %}
@@ -54,7 +55,7 @@
                     {% endif %}
                     <form method="post" action="{% url 'notifications:notification_delete' notification.pk %}" class="d-inline">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Sil">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{% trans 'Sil' %}">
                             <i class="bi bi-trash"></i>
                         </button>
                     </form>
@@ -93,7 +94,7 @@
 {% else %}
     <div class="text-center text-muted py-5">
         <i class="bi bi-bell-slash display-4 d-block mb-3"></i>
-        <p>Henüz bildiriminiz bulunmuyor.</p>
+        <p>{% trans "Henüz bildiriminiz bulunmuyor." %}</p>
     </div>
 {% endif %}
 {% endblock %}

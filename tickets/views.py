@@ -1,15 +1,84 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.generic import ListView, CreateView, DetailView, UpdateView
+from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
+from identity.views import AdminRequiredMixin
 from django.urls import reverse_lazy
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 from django.db.models import Q, Case, When, IntegerField
 
-from .models import Ticket, Status, Priority, TicketHistory, TicketComment
+from .models import Ticket, Status, Priority, TicketHistory, TicketComment, TicketAttachment, Tag
 from notifications.models import Notification
 from identity.models import Role
+from identity.audit import audit_log, AuditCategory
+
+
+# Geçmiş (sistem genelinde tüm aksiyonlar — AuditLog) — Sadece ADMIN.
+class AuditLogListView(LoginRequiredMixin, ListView):
+    template_name = 'tickets/audit_log.html'
+    context_object_name = 'entries'
+    paginate_by = 50
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.user.role != Role.ADMIN:
+            return HttpResponseForbidden('Bu sayfaya erişim yetkiniz bulunmamaktadır.')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        from identity.models import AuditLog
+        qs = (
+            AuditLog.objects
+            .select_related('actor', 'ticket', 'department')
+            .order_by('-created_at')
+        )
+
+        actor_id = self.request.GET.get('actor')
+        if actor_id and actor_id.isdigit():
+            qs = qs.filter(actor_id=int(actor_id))
+
+        category = self.request.GET.get('category')
+        if category and category in dict(AuditLog.Category.choices):
+            qs = qs.filter(category=category)
+
+        department_id = self.request.GET.get('department')
+        if department_id and department_id.isdigit():
+            qs = qs.filter(department_id=int(department_id))
+
+        date_from = self.request.GET.get('date_from')
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        date_to = self.request.GET.get('date_to')
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(action__icontains=q)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        from identity.models import User as UserModel, AuditLog
+        from departments.models import Department
+        context = super().get_context_data(**kwargs)
+        context['actors'] = (
+            UserModel.objects
+            .filter(audit_actions__isnull=False)
+            .distinct()
+            .order_by('first_name', 'last_name', 'username')
+        )
+        context['departments'] = Department.objects.order_by('name')
+        context['categories'] = AuditLog.Category.choices
+        context['current_actor'] = self.request.GET.get('actor', '')
+        context['current_category'] = self.request.GET.get('category', '')
+        context['current_department'] = self.request.GET.get('department', '')
+        context['current_date_from'] = self.request.GET.get('date_from', '')
+        context['current_date_to'] = self.request.GET.get('date_to', '')
+        context['current_q'] = self.request.GET.get('q', '')
+        return context
 
 
 # Önceliklerin sayısal sıralaması (LOW < NORMAL < HIGH < URGENT)
@@ -22,9 +91,16 @@ PRIORITY_ORDER = Case(
 )
 
 
-# Audit log yardımcı fonksiyonu
-def log_ticket_action(ticket, actor, action):
+# Audit log yardımcı fonksiyonu — bilet detay timeline'ı için TicketHistory,
+# sistem genel "Geçmiş" sayfası için merkezi AuditLog'a yazar.
+def log_ticket_action(ticket, actor, action, request=None):
     TicketHistory.objects.create(ticket=ticket, actor=actor, action=action)
+    audit_log(
+        request, AuditCategory.TICKET, action,
+        actor=actor, ticket=ticket,
+        department=ticket.department if ticket else None,
+        target=ticket,
+    )
 
 
 # Bilet listeleme - Rol bazlı filtreleme + sıralama
@@ -38,13 +114,18 @@ class TicketListView(LoginRequiredMixin, ListView):
         user = self.request.user
         qs = Ticket.objects.select_related(
             'sender', 'assigned_to', 'department', 'category',
-        )
+        ).prefetch_related('tags')
 
         # Rol bazlı filtreleme
+        # AGENT/MANAGER: kendi departmanının biletleri + kendi açtığı biletler (başka
+        # departmana gönderdikleri dahil). Departmanı atanmamış ise sadece kendi biletleri.
         if user.role == Role.ADMIN:
             pass  # Tüm biletler
         elif user.role in (Role.AGENT, Role.MANAGER):
-            qs = qs.filter(department=user.department)
+            if user.department_id:
+                qs = qs.filter(Q(department=user.department) | Q(sender=user))
+            else:
+                qs = qs.filter(sender=user)
         else:
             qs = qs.filter(sender=user)
 
@@ -57,6 +138,32 @@ class TicketListView(LoginRequiredMixin, ListView):
         priority_filter = self.request.GET.get('priority')
         if priority_filter and priority_filter in dict(Priority.choices):
             qs = qs.filter(priority=priority_filter)
+
+        # Departman filtresi (?department=<id>) — sadece ADMIN için kullanışlı,
+        # diğer roller zaten kendi departmanına kısıtlı.
+        department_filter = self.request.GET.get('department')
+        if department_filter and department_filter.isdigit():
+            qs = qs.filter(department_id=int(department_filter))
+
+        # Kategori filtresi (?category=<id>)
+        category_filter = self.request.GET.get('category')
+        if category_filter and category_filter.isdigit():
+            qs = qs.filter(category_id=int(category_filter))
+
+        # Açan (sender) filtresi (?sender=<id>)
+        sender_filter = self.request.GET.get('sender')
+        if sender_filter and sender_filter.isdigit():
+            qs = qs.filter(sender_id=int(sender_filter))
+
+        # Üstlenen/Kapatan (assigned_to) filtresi (?assigned_to=<id>)
+        assigned_filter = self.request.GET.get('assigned_to')
+        if assigned_filter and assigned_filter.isdigit():
+            qs = qs.filter(assigned_to_id=int(assigned_filter))
+
+        # Etiket filtresi (?tag=<id>)
+        tag_filter = self.request.GET.get('tag')
+        if tag_filter and tag_filter.isdigit():
+            qs = qs.filter(tags__id=int(tag_filter)).distinct()
 
         # Sıralama (?sort=priority / ?sort=status / ?sort=created_at)
         sort = self.request.GET.get('sort', '-created_at')
@@ -76,12 +183,70 @@ class TicketListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['user_role'] = self.request.user.role
+        from departments.models import Department, Category
+        from identity.models import User as UserModel
+
+        user = self.request.user
+        context['user_role'] = user.role
         context['status_choices'] = Status.choices
         context['priority_choices'] = Priority.choices
         context['current_status'] = self.request.GET.get('status', '')
         context['current_priority'] = self.request.GET.get('priority', '')
+        context['current_department'] = self.request.GET.get('department', '')
+        context['current_category'] = self.request.GET.get('category', '')
+        context['current_sender'] = self.request.GET.get('sender', '')
+        context['current_assigned_to'] = self.request.GET.get('assigned_to', '')
+        context['current_tag'] = self.request.GET.get('tag', '')
+        context['tags'] = Tag.objects.all().order_by('name')
         context['current_sort'] = self.request.GET.get('sort', '-created_at')
+        # Toplu işlem yetkisi (Manager/Admin)
+        context['can_bulk_action'] = user.role in (Role.MANAGER, Role.ADMIN)
+        context['priority_choices'] = Priority.choices
+
+        # Filtre dropdown'ları için rol bazlı kapsam.
+        # Sıralama: önce departman adı, sonra kullanıcı/kategori adı
+        # → "IT - Batuhan", "IT - Hakan", "Muhasebe - Ahmet" akışı.
+        # filter_users  : Açan dropdown'u (herhangi bir rol bilet açabilir)
+        # assignee_users: Üstlenen dropdown'u — sadece AGENT (bilet üstlenebilen rol)
+        if user.role == Role.ADMIN:
+            context['departments'] = Department.objects.order_by('name')
+            context['categories'] = (
+                Category.objects
+                .select_related('department')
+                .order_by('department__name', 'name')
+            )
+            base_users = (
+                UserModel.objects
+                .filter(is_active=True)
+                .select_related('department')
+                .order_by('department__name', 'first_name', 'last_name', 'username')
+            )
+            context['filter_users'] = base_users
+            context['assignee_users'] = base_users.filter(role=Role.AGENT)
+        elif user.role in (Role.AGENT, Role.MANAGER):
+            # Sadece kendi departmanlarındaki kategoriler ve personel
+            context['categories'] = (
+                Category.objects
+                .select_related('department')
+                .filter(department=user.department)
+                .order_by('name')
+            )
+            base_users = (
+                UserModel.objects
+                .filter(is_active=True, department=user.department)
+                .select_related('department')
+                .order_by('first_name', 'last_name', 'username')
+            )
+            context['filter_users'] = base_users
+            context['assignee_users'] = base_users.filter(role=Role.AGENT)
+        else:
+            # EMPLOYEE: biletlerini departman ve kategoriye göre filtreleyebilsin
+            context['departments'] = Department.objects.order_by('name')
+            context['categories'] = (
+                Category.objects
+                .select_related('department')
+                .order_by('department__name', 'name')
+            )
         return context
 
 
@@ -89,11 +254,19 @@ class TicketListView(LoginRequiredMixin, ListView):
 class TicketCreateView(LoginRequiredMixin, CreateView):
     model = Ticket
     template_name = 'tickets/ticket_form.html'
-    fields = ['subject', 'message', 'department', 'category', 'priority', 'attachment']
+    # 'attachment' artık modelin alanı değil; çoklu dosya request.FILES'dan elle alınır
+    fields = ['subject', 'message', 'department', 'category', 'priority', 'tags']
     success_url = reverse_lazy('tickets:ticket_list')
 
+    def get_initial(self):
+        initial = super().get_initial()
+        # AGENT/MANAGER: kendi departmanını otomatik seç → kategori AJAX'ı sayfa yüklendiğinde tetiklenir
+        user = self.request.user
+        if user.role in (Role.AGENT, Role.MANAGER) and user.department_id:
+            initial['department'] = user.department_id
+        return initial
+
     def form_valid(self, form):
-        # Kategori-departman tutarlılığı: kategori başka bir departmana aitse hata
         category = form.cleaned_data.get('category')
         department = form.cleaned_data.get('department')
         if category and department and category.department_id != department.pk:
@@ -104,13 +277,24 @@ class TicketCreateView(LoginRequiredMixin, CreateView):
         form.instance.status = Status.OPEN
         response = super().form_valid(form)
 
-        log_ticket_action(self.object, self.request.user, 'Bilet oluşturuldu.')
+        # Çoklu dosya ekleri kaydet
+        _save_ticket_attachments(self.request, self.object)
 
+        log_ticket_action(self.object, self.request.user, 'Bilet oluşturuldu.')
         messages.success(
             self.request,
-            f'Talebiniz başarıyla oluşturuldu. (Bilet #{self.object.pk})',
+            f'Talebiniz başarıyla oluşturuldu. ({self.object.code})',
         )
         return response
+
+
+# Çoklu dosya ekini request.FILES'tan alıp TicketAttachment olarak kaydet
+def _save_ticket_attachments(request, ticket):
+    files = request.FILES.getlist('attachments')
+    for f in files:
+        TicketAttachment.objects.create(
+            ticket=ticket, file=f, uploaded_by=request.user,
+        )
 
 
 # Bilet detay - Rol bazlı erişim kontrolü + geçmiş
@@ -123,7 +307,7 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         user = self.request.user
         qs = Ticket.objects.select_related(
             'sender', 'assigned_to', 'department', 'category',
-        )
+        ).prefetch_related('tags', 'attachments')
 
         if user.role == Role.ADMIN:
             return qs
@@ -295,7 +479,7 @@ def ticket_transfer_view(request, pk):
 class TicketUpdateView(LoginRequiredMixin, UpdateView):
     model = Ticket
     template_name = 'tickets/ticket_form.html'
-    fields = ['subject', 'message', 'department', 'category', 'priority', 'attachment']
+    fields = ['subject', 'message', 'department', 'category', 'priority', 'tags']
 
     def get_queryset(self):
         user = self.request.user
@@ -303,7 +487,8 @@ class TicketUpdateView(LoginRequiredMixin, UpdateView):
 
         if user.role == Role.ADMIN:
             return qs
-        return qs.filter(sender=user, status=Status.OPEN)
+        # Sender sadece HENÜZ atanmamış (assigned_to is None) ve OPEN biletini düzenleyebilir
+        return qs.filter(sender=user, status=Status.OPEN, assigned_to__isnull=True)
 
     def get_success_url(self):
         return reverse_lazy('tickets:ticket_detail', kwargs={'pk': self.object.pk})
@@ -316,8 +501,9 @@ class TicketUpdateView(LoginRequiredMixin, UpdateView):
             return self.form_invalid(form)
 
         response = super().form_valid(form)
+        _save_ticket_attachments(self.request, self.object)
         log_ticket_action(self.object, self.request.user, 'Bilet güncellendi.')
-        messages.success(self.request, f'Bilet #{self.object.pk} başarıyla güncellendi.')
+        messages.success(self.request, f'{self.object.code} başarıyla güncellendi.')
         return response
 
 
@@ -340,15 +526,20 @@ def ticket_add_comment_view(request, pk):
         return HttpResponseForbidden('Bu bilete yorum yapamazsınız.')
 
     content = request.POST.get('content', '').strip()
-    if not content:
-        messages.warning(request, 'Yorum boş olamaz.')
+    attachment = request.FILES.get('comment_attachment')
+
+    if not content and not attachment:
+        messages.warning(request, 'Mesaj veya dosya eklerinden en az birini gönderin.')
         return redirect('tickets:ticket_detail', pk=ticket.pk)
 
     if len(content) > 2000:
         messages.warning(request, 'Yorum en fazla 2000 karakter olabilir.')
         return redirect('tickets:ticket_detail', pk=ticket.pk)
 
-    TicketComment.objects.create(ticket=ticket, author=user, content=content)
+    TicketComment.objects.create(
+        ticket=ticket, author=user, content=content,
+        attachment=attachment,
+    )
 
     # Talep sahibi yorum yazdıysa personele bildir; personel yazdıysa talep sahibine bildir
     if user == ticket.sender:
@@ -362,7 +553,7 @@ def ticket_add_comment_view(request, pk):
             ticket=ticket,
             message=(
                 f'"{ticket.subject}" (#{ticket.pk}) biletine '
-                f'{user.get_full_name() or user.username} yorum ekledi.'
+                f'{user.get_full_name() or user.username} mesaj attı.'
             ),
         )
 
@@ -411,6 +602,105 @@ def ticket_reopen_view(request, pk):
     return redirect('tickets:ticket_detail', pk=ticket.pk)
 
 
+# Toplu bilet işlemi — Admin / Manager (kapsamlarına göre)
+@login_required
+def ticket_bulk_action_view(request):
+    if request.method != 'POST':
+        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
+
+    user = request.user
+    if user.role not in (Role.MANAGER, Role.ADMIN):
+        return HttpResponseForbidden('Bu işlem için yetkiniz bulunmamaktadır.')
+
+    action = request.POST.get('action', '')
+    ticket_ids = request.POST.getlist('ticket_ids')
+    if not ticket_ids:
+        messages.warning(request, 'Lütfen en az bir bilet seçin.')
+        return redirect('tickets:ticket_list')
+
+    qs = Ticket.objects.filter(pk__in=ticket_ids)
+    # Manager kapsamı: sadece kendi departmanı
+    if user.role == Role.MANAGER:
+        qs = qs.filter(department=user.department)
+
+    if action == 'close':
+        # Sadece İŞLEMDEKİ veya AÇIK biletler kapatılabilir
+        from django.utils import timezone
+        target = qs.exclude(status=Status.CLOSED)
+        ids = list(target.values_list('pk', flat=True))
+        count = target.update(
+            status=Status.CLOSED,
+            closed_at=timezone.now(),
+            resolution_note='Toplu işlem ile kapatıldı.',
+        )
+        # Audit log
+        for tid in ids:
+            TicketHistory.objects.create(
+                ticket_id=tid, actor=user,
+                action='Bilet kapatıldı. Çözüm: Toplu işlem ile kapatıldı.',
+            )
+        messages.success(request, f'{count} bilet kapatıldı.')
+
+    elif action == 'reopen':
+        target = qs.filter(status=Status.CLOSED)
+        ids = list(target.values_list('pk', flat=True))
+        count = target.update(
+            status=Status.OPEN, assigned_to=None, closed_at=None,
+        )
+        for tid in ids:
+            TicketHistory.objects.create(
+                ticket_id=tid, actor=user, action='Bilet yeniden açıldı.',
+            )
+        messages.success(request, f'{count} bilet yeniden açıldı.')
+
+    elif action == 'delete':
+        # Silme: Admin her zaman, Manager sadece kendi departmanı
+        count = qs.count()
+        qs.delete()
+        messages.success(request, f'{count} bilet silindi.')
+
+    elif action.startswith('priority:'):
+        # priority:HIGH gibi
+        new_priority = action.split(':', 1)[1]
+        if new_priority not in dict(Priority.choices):
+            messages.error(request, 'Geçersiz öncelik.')
+            return redirect('tickets:ticket_list')
+        count = qs.update(priority=new_priority)
+        messages.success(request, f'{count} biletin önceliği "{dict(Priority.choices)[new_priority]}" olarak ayarlandı.')
+
+    else:
+        messages.error(request, 'Geçersiz işlem.')
+
+    return redirect('tickets:ticket_list')
+
+
+# Bilet eki silme — Yükleyen, talep sahibi veya ilgili Manager/Admin
+@login_required
+def ticket_attachment_delete_view(request, pk):
+    if request.method != 'POST':
+        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
+
+    attachment = get_object_or_404(TicketAttachment.objects.select_related('ticket'), pk=pk)
+    ticket = attachment.ticket
+    user = request.user
+
+    # Yükleyen her zaman silebilir; talep sahibi sadece bilet henüz atanmamışsa
+    is_uploader = (attachment.uploaded_by == user)
+    is_sender_before_assign = (ticket.sender == user and ticket.assigned_to is None)
+    is_owner = is_uploader or is_sender_before_assign
+    is_admin = user.role == Role.ADMIN
+    is_dept_manager = (
+        user.role == Role.MANAGER and ticket.department_id == user.department_id
+    )
+
+    if not (is_owner or is_admin or is_dept_manager):
+        return HttpResponseForbidden('Bu eki silme yetkiniz yok.')
+
+    attachment.delete()
+    messages.info(request, 'Dosya eki silindi.')
+    return redirect('tickets:ticket_detail', pk=ticket.pk)
+
+
 # Bilet silme — Talep sahibi (OPEN), ilgili Manager veya Admin
 @login_required
 def ticket_delete_view(request, pk):
@@ -437,3 +727,50 @@ def ticket_delete_view(request, pk):
 
     messages.success(request, f'Bilet #{ticket_pk} başarıyla silindi.')
     return redirect('tickets:ticket_list')
+
+
+# Etiket CRUD (Sadece Admin)
+
+class TagListView(AdminRequiredMixin, ListView):
+    model = Tag
+    template_name = 'tickets/tag_list.html'
+    context_object_name = 'tags'
+
+
+class TagCreateView(AdminRequiredMixin, CreateView):
+    model = Tag
+    template_name = 'tickets/tag_form.html'
+    fields = ['name', 'color']
+    success_url = reverse_lazy('tickets:tag_list')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        audit_log(self.request, AuditCategory.OTHER, f'Etiket oluşturuldu: {self.object.name}', target=self.object)
+        messages.success(self.request, f'"{self.object.name}" etiketi başarıyla oluşturuldu.')
+        return response
+
+
+class TagUpdateView(AdminRequiredMixin, UpdateView):
+    model = Tag
+    template_name = 'tickets/tag_form.html'
+    fields = ['name', 'color']
+    success_url = reverse_lazy('tickets:tag_list')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        audit_log(self.request, AuditCategory.OTHER, f'Etiket güncellendi: {self.object.name}', target=self.object)
+        messages.success(self.request, f'"{self.object.name}" etiketi başarıyla güncellendi.')
+        return response
+
+
+class TagDeleteView(AdminRequiredMixin, DeleteView):
+    model = Tag
+    template_name = 'tickets/tag_confirm_delete.html'
+    success_url = reverse_lazy('tickets:tag_list')
+
+    def form_valid(self, form):
+        tag_name = self.object.name
+        response = super().form_valid(form)
+        audit_log(self.request, AuditCategory.OTHER, f'Etiket silindi: {tag_name}')
+        messages.success(self.request, f'"{tag_name}" etiketi başarıyla silindi.')
+        return response

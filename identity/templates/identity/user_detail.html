@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}{{ profile_user.username }} — Talep Yönetim Sistemi{% endblock %}
 
@@ -13,7 +14,7 @@
             <div class="d-flex align-items-center">
                 {% if profile_user.avatar %}
                     <img src="{{ profile_user.avatar.url }}"
-                         alt="Profil fotoğrafı"
+                         alt="{% trans 'Profil fotoğrafı' %}"
                          class="rounded-circle me-3 object-fit-cover"
                          style="width:56px;height:56px;">
                 {% else %}
@@ -27,16 +28,29 @@
                     <small class="text-muted">@{{ profile_user.username }}</small>
                 </div>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
                 <a href="{% url 'identity:user_update' profile_user.pk %}" class="btn btn-outline-dark btn-sm">
-                    <i class="bi bi-pencil me-1"></i>Düzenle
+                    <i class="bi bi-pencil me-1"></i>{% trans "Hesabı Düzenle" %}
                 </a>
                 {% if profile_user != user %}
+                    <form method="post" action="{% url 'identity:user_deactivate' profile_user.pk %}"
+                          onsubmit="return confirm('{% if profile_user.is_active %}Bu hesabı deaktif etmek istediğinize emin misiniz?{% else %}Bu hesabı yeniden aktif etmek istediğinize emin misiniz?{% endif %}');">
+                        {% csrf_token %}
+                        {% if profile_user.is_active %}
+                            <button type="submit" class="btn btn-outline-warning btn-sm">
+                                <i class="bi bi-person-slash me-1"></i>{% trans "Hesabı Deaktif Et" %}
+                            </button>
+                        {% else %}
+                            <button type="submit" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-person-check me-1"></i>{% trans "Hesabı Aktif Et" %}
+                            </button>
+                        {% endif %}
+                    </form>
                     <form method="post" action="{% url 'identity:user_delete' profile_user.pk %}"
-                          onsubmit="return confirm('Bu kullanıcıyı deaktif etmek istediğinize emin misiniz?');">
+                          onsubmit="return confirm('Bu hesabı KALICI olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-danger btn-sm">
-                            <i class="bi bi-person-x me-1"></i>Deaktif Et
+                            <i class="bi bi-person-x me-1"></i>{% trans "Hesabı Sil" %}
                         </button>
                     </form>
                 {% endif %}
@@ -46,22 +60,22 @@
         <!-- Kişisel bilgiler -->
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Kişisel Bilgiler</h6>
+                <h6 class="text-muted mb-3">{% trans "Kişisel Bilgiler" %}</h6>
                 <div class="row g-3">
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">E-posta</small>
+                        <small class="text-muted d-block">{% trans "E-posta" %}</small>
                         <span><i class="bi bi-envelope me-1"></i>{{ profile_user.email|default:"Belirtilmemiş" }}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Telefon</small>
+                        <small class="text-muted d-block">{% trans "Telefon" %}</small>
                         <span><i class="bi bi-phone me-1"></i>{{ profile_user.phone|default:"Belirtilmemiş" }}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Rol</small>
+                        <small class="text-muted d-block">{% trans "Rol" %}</small>
                         <span><i class="bi bi-shield-check me-1"></i>{{ profile_user.get_role_display }}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Departman</small>
+                        <small class="text-muted d-block">{% trans "Departman" %}</small>
                         <span>
                             <i class="bi bi-building me-1"></i>
                             {% if profile_user.department %}
@@ -69,7 +83,7 @@
                                     {{ profile_user.department.name }}
                                 </a>
                             {% else %}
-                                <span class="text-muted">Atanmamış</span>
+                                <span class="text-muted">{% trans "Atanmamış" %}</span>
                             {% endif %}
                         </span>
                     </div>
@@ -80,14 +94,14 @@
         <!-- İstatistikler -->
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Bilet İstatistikleri</h6>
+                <h6 class="text-muted mb-3">{% trans "Bilet İstatistikleri" %}</h6>
                 <div class="row g-3">
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Gönderilen Biletler</small>
+                        <small class="text-muted d-block">{% trans "Gönderilen Biletler" %}</small>
                         <span class="fw-medium">{{ sent_tickets_count }}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Atanan Biletler</small>
+                        <small class="text-muted d-block">{% trans "Atanan Biletler" %}</small>
                         <span class="fw-medium">{{ assigned_tickets_count }}</span>
                     </div>
                 </div>
@@ -99,30 +113,30 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Hesap Durumu</h6>
+                <h6 class="text-muted mb-3">{% trans "Hesap Durumu" %}</h6>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Durum</small>
+                    <small class="text-muted d-block">{% trans "Durum" %}</small>
                     {% if profile_user.is_active %}
-                        <span class="badge bg-success">Aktif</span>
+                        <span class="badge bg-success">{% trans "Aktif" %}</span>
                     {% else %}
-                        <span class="badge bg-secondary">Pasif</span>
+                        <span class="badge bg-secondary">{% trans "Pasif" %}</span>
                     {% endif %}
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Kayıt Tarihi</small>
+                    <small class="text-muted d-block">{% trans "Kayıt Tarihi" %}</small>
                     <span><i class="bi bi-calendar me-1"></i>{{ profile_user.date_joined|date:"d.m.Y" }}</span>
                 </div>
 
                 <div class="mb-0">
-                    <small class="text-muted d-block">Son Giriş</small>
+                    <small class="text-muted d-block">{% trans "Son Giriş" %}</small>
                     <span>
                         <i class="bi bi-clock me-1"></i>
                         {% if profile_user.last_login %}
                             {{ profile_user.last_login|date:"d.m.Y H:i" }}
                         {% else %}
-                            <span class="text-muted">Hiç giriş yapmadı</span>
+                            <span class="text-muted">{% trans "Hiç giriş yapmadı" %}</span>
                         {% endif %}
                     </span>
                 </div>
@@ -130,11 +144,173 @@
         </div>
 
         <a href="{% url 'identity:user_list' %}" class="btn btn-outline-secondary w-100 mt-3">
-            <i class="bi bi-arrow-left me-1"></i>Kullanıcı Listesine Dön
+            <i class="bi bi-arrow-left me-1"></i>{% trans "Kullanıcı Listesine Dön" %}
         </a>
     </div>
 
 </div>
+
+<!-- Çözüm Performansı (sadece AGENT/MANAGER/ADMIN için) -->
+{% if solved_total_count is not None %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">
+                    <i class="bi bi-graph-up-arrow me-1"></i>{% trans "Çözüm Performansı" %}
+                </h6>
+
+                <!-- Özet kartlar -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="border rounded text-center py-3">
+                            <div class="h3 fw-bold mb-0">{{ solved_total_count }}</div>
+                            <small class="text-muted">{% trans "Toplam Çözüm" %}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded text-center py-3">
+                            <div class="h3 fw-bold text-success mb-0">{{ solved_success_count }}</div>
+                            <small class="text-muted">{% trans "Başarılı" %}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded text-center py-3">
+                            <div class="h3 fw-bold text-danger mb-0">{{ solved_failure_count }}</div>
+                            <small class="text-muted">{% trans "Yeniden Açılan" %}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded text-center py-3">
+                            <div class="h3 fw-bold text-primary mb-0">%{{ solved_success_rate }}</div>
+                            <small class="text-muted">{% trans "Başarı Oranı" %}</small>
+                        </div>
+                    </div>
+                </div>
+
+                {% if category_stats %}
+                <!-- Kategori bazlı başarı dağılımı -->
+                <h6 class="text-muted mt-4 mb-2">{% trans "Kategori Bazlı Performans" %}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{% trans "Kategori" %}</th>
+                                <th class="text-center" style="width:90px;">{% trans "Toplam" %}</th>
+                                <th class="text-center" style="width:90px;">{% trans "Başarılı" %}</th>
+                                <th class="text-center" style="width:110px;">{% trans "Yeniden Açılan" %}</th>
+                                <th style="min-width:200px;">{% trans "Başarı Oranı" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in category_stats %}
+                                <tr>
+                                    <td class="fw-medium">{{ cat.name }}</td>
+                                    <td class="text-center">{{ cat.total }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success-subtle text-success">{{ cat.success }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if cat.failure %}
+                                            <span class="badge bg-danger-subtle text-danger">{{ cat.failure }}</span>
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height:8px;" role="progressbar"
+                                                 aria-valuenow="{{ cat.success_rate }}" aria-valuemin="0" aria-valuemax="100">
+                                                <div class="progress-bar
+                                                    {% if cat.success_rate >= 80 %}bg-success
+                                                    {% elif cat.success_rate >= 50 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}"
+                                                     style="width: {{ cat.success_rate }}%;"></div>
+                                            </div>
+                                            <small class="text-muted text-nowrap">%{{ cat.success_rate }}</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if solved_tickets %}
+<!-- Çözülen Bilet Listesi -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">
+                    <i class="bi bi-check2-circle me-1"></i>{% trans "Çözülen Biletler" %}
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px;">#</th>
+                                <th>{% trans "Konu" %}</th>
+                                <th>Kategori</th>
+                                <th>{% trans "Departman" %}</th>
+                                <th>{% trans "Kapatılma" %}</th>
+                                <th class="text-center" style="width:140px;">{% trans "Sonuç" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in solved_tickets %}
+                                <tr class="ticket-row" style="cursor:pointer;"
+                                    onclick="window.location='{% url 'tickets:ticket_detail' entry.ticket.pk %}';">
+                                    <td>
+                                        <a href="{% url 'tickets:ticket_detail' entry.ticket.pk %}"
+                                           class="text-decoration-none fw-medium"
+                                           onclick="event.stopPropagation();">
+                                            {{ entry.ticket.pk }}
+                                        </a>
+                                    </td>
+                                    <td>{{ entry.ticket.subject }}</td>
+                                    <td>
+                                        {% if entry.ticket.category %}
+                                            {{ entry.ticket.category.name }}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.ticket.department %}
+                                            {{ entry.ticket.department.name }}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-muted">{{ entry.closed_at|date:"d.m.Y H:i" }}</td>
+                                    <td class="text-center">
+                                        {% if entry.is_success %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-lg me-1"></i>{% trans "Başarılı" %}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>{% trans "Yeniden Açıldı" %}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
 
 <!-- Aktivite Geçmişi -->
 {% if activity %}
@@ -143,7 +319,7 @@
         <div class="card border-0 shadow-sm">
             <div class="card-body">
                 <h6 class="text-muted mb-3">
-                    <i class="bi bi-activity me-1"></i>Son Aktiviteler
+                    <i class="bi bi-activity me-1"></i>{% trans "Son Aktiviteler" %}
                 </h6>
                 <div class="list-group list-group-flush">
                     {% for entry in activity %}

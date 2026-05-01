@@ -1,27 +1,28 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Raporlar — Talep Yönetim Sistemi{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <h1 class="h4 mb-0">
-        <i class="bi bi-bar-chart-line me-2"></i>Raporlar ve İstatistikler
+        <i class="bi bi-bar-chart-line me-2"></i>{% trans "Raporlar ve İstatistikler" %}
     </h1>
     <div class="d-flex flex-wrap gap-2 align-items-end">
         <!-- Tarih aralığı filtresi -->
         <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
             <div>
-                <label class="form-label mb-1 small text-muted">Başlangıç</label>
+                <label class="form-label mb-1 small text-muted">{% trans "Başlangıç" %}</label>
                 <input type="date" name="date_from" class="form-control form-control-sm"
                        value="{{ date_from }}" style="width:145px;">
             </div>
             <div>
-                <label class="form-label mb-1 small text-muted">Bitiş</label>
+                <label class="form-label mb-1 small text-muted">{% trans "Bitiş" %}</label>
                 <input type="date" name="date_to" class="form-control form-control-sm"
                        value="{{ date_to }}" style="width:145px;">
             </div>
             <button type="submit" class="btn btn-sm btn-outline-dark">
-                <i class="bi bi-funnel me-1"></i>Filtrele
+                <i class="bi bi-funnel me-1"></i>{% trans "Filtrele" %}
             </button>
             {% if date_from or date_to %}
                 <a href="{% url 'reports:dashboard' %}" class="btn btn-sm btn-outline-secondary">
@@ -32,7 +33,7 @@
         <!-- Dışa aktar — tarih filtresini parametrelerle geçirir -->
         <div class="dropdown">
             <button class="btn btn-dark btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                <i class="bi bi-download me-1"></i>Dışa Aktar
+                <i class="bi bi-download me-1"></i>{% trans "Dışa Aktar" %}
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li>
@@ -59,7 +60,7 @@
 <div class="alert alert-info py-2 mb-3 d-flex align-items-center gap-2">
     <i class="bi bi-funnel-fill"></i>
     <span>
-        Filtre aktif:
+        {% trans "Filtre aktif:" %}
         {% if date_from %}<strong>{{ date_from }}</strong>{% endif %}
         {% if date_from and date_to %} — {% endif %}
         {% if date_to %}<strong>{{ date_to }}</strong>{% endif %}
@@ -67,30 +68,53 @@
 </div>
 {% endif %}
 
+<!-- Anomali tespiti — son 7 gün vs önceki 7 gün -->
+{% if anomalies %}
+<div class="alert alert-warning d-flex align-items-start gap-2 mb-4">
+    <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+    <div class="flex-grow-1">
+        <strong>{% trans "Trend Uyarısı:" %}</strong> {% trans "Son 7 günde aşağıdaki kategorilerde belirgin artış tespit edildi." %}
+        <ul class="mb-0 mt-1">
+            {% for a in anomalies %}
+                <li>
+                    <strong>{{ a.category }}</strong>:
+                    {% if a.is_new_trend %}
+                        son 7 günde <strong>{{ a.current }}</strong> bilet (önceki hafta hareket yoktu) — yeni trend.
+                    {% else %}
+                        son 7 günde <strong>{{ a.current }}</strong> bilet, önceki hafta {{ a.previous }} —
+                        <span class="text-danger fw-bold">%{{ a.change_pct|floatformat:0 }} artış</span>.
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
 <!-- Özet kartları -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3">
+        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
             <div class="display-6 fw-bold">{{ total_tickets }}</div>
-            <small class="text-muted">Toplam Bilet</small>
+            <small class="text-muted">{% trans "Toplam Bilet" %}</small>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3">
+        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
             <div class="display-6 fw-bold text-primary">{{ open_count }}</div>
-            <small class="text-muted">Açık</small>
+            <small class="text-muted">{% trans "Açık" %}</small>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3">
+        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
             <div class="display-6 fw-bold text-warning">{{ in_progress_count }}</div>
-            <small class="text-muted">İşlemde</small>
+            <small class="text-muted">{% trans "İşlemde" %}</small>
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3">
+        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
             <div class="display-6 fw-bold text-secondary">{{ closed_count }}</div>
-            <small class="text-muted">Kapalı</small>
+            <small class="text-muted">{% trans "Kapalı" %}</small>
         </div>
     </div>
 </div>
@@ -101,7 +125,7 @@
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Aylık Bilet Trendi</h6>
+                <h6 class="text-muted mb-3">{% trans "Aylık Bilet Trendi" %}</h6>
                 <div style="position: relative; height: 260px;">
                     <canvas id="monthlyChart"></canvas>
                 </div>
@@ -112,7 +136,7 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Durum Dağılımı</h6>
+                <h6 class="text-muted mb-3">{% trans "Durum Dağılımı" %}</h6>
                 <div style="position: relative; height: 260px;">
                     <canvas id="statusChart"></canvas>
                 </div>
@@ -126,7 +150,7 @@
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Departman Karşılaştırması</h6>
+                <h6 class="text-muted mb-3">{% trans "Departman Karşılaştırması" %}</h6>
                 <div style="position: relative; height: 300px;">
                     <canvas id="deptChart"></canvas>
                 </div>
@@ -140,15 +164,15 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Departman Performansı</h6>
+                <h6 class="text-muted mb-3">{% trans "Departman Performansı" %}</h6>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
-                                <th>Departman</th>
-                                <th class="text-center">Toplam</th>
-                                <th class="text-center">Açık</th>
-                                <th class="text-center">Ort. Çözüm</th>
+                                <th>{% trans "Departman" %}</th>
+                                <th class="text-center">{% trans "Toplam" %}</th>
+                                <th class="text-center">{% trans "Açık" %}</th>
+                                <th class="text-center">{% trans "Ort. Çözüm" %}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -163,14 +187,14 @@
                                     </td>
                                     <td class="text-center">
                                         {% if dept.avg_hours != None %}
-                                            {{ dept.avg_hours }} saat
+                                            {% blocktrans with h=dept.avg_hours %}{{ h }} hours{% endblocktrans %}
                                         {% else %}
                                             <span class="text-muted">—</span>
                                         {% endif %}
                                     </td>
                                 </tr>
                             {% empty %}
-                                <tr><td colspan="4" class="text-center text-muted">Veri yok</td></tr>
+                                <tr><td colspan="4" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -183,21 +207,21 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">En Çok Talep Alan Kategoriler</h6>
+                <h6 class="text-muted mb-3">{% trans "En Çok Talep Alan Kategoriler" %}</h6>
                 {% if top_categories %}
                     <div class="list-group list-group-flush">
                         {% for cat in top_categories %}
                             <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                                 <div>
                                     <span>{{ cat.name }}</span>
-                                    <small class="text-muted d-block">{{ cat.department.name }}</small>
+                                    <small class="text-muted d-block">{{ cat.department_name }}</small>
                                 </div>
                                 <span class="badge bg-dark rounded-pill">{{ cat.ticket_count }}</span>
                             </div>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted text-center mb-0">Veri yok</p>
+                    <p class="text-muted text-center mb-0">{% trans "Veri yok" %}</p>
                 {% endif %}
             </div>
         </div>
@@ -209,14 +233,14 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Personel İş Yükü</h6>
+                <h6 class="text-muted mb-3">{% trans "Personel İş Yükü" %}</h6>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
-                                <th>Personel</th>
-                                <th class="text-center">Aktif</th>
-                                <th class="text-center">Kapattığı</th>
+                                <th>{% trans "Personel" %}</th>
+                                <th class="text-center">{% trans "Aktif" %}</th>
+                                <th class="text-center">{% trans "Kapattığı" %}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -233,7 +257,7 @@
                                     <td class="text-center">{{ p.total_closed }}</td>
                                 </tr>
                             {% empty %}
-                                <tr><td colspan="3" class="text-center text-muted">Veri yok</td></tr>
+                                <tr><td colspan="3" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -246,13 +270,13 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Personel Ort. Çözüm Süresi</h6>
+                <h6 class="text-muted mb-3">{% trans "Personel Ort. Çözüm Süresi" %}</h6>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
                                 <th>Personel</th>
-                                <th class="text-center">Ort. Süre</th>
+                                <th class="text-center">{% trans "Ort. Süre" %}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -261,18 +285,82 @@
                                     <td>{{ p.name }}</td>
                                     <td class="text-center">
                                         {% if p.avg_hours != None %}
-                                            {{ p.avg_hours }} saat
+                                            {% blocktrans with h=p.avg_hours %}{{ h }} hours{% endblocktrans %}
                                         {% else %}
                                             <span class="text-muted">—</span>
                                         {% endif %}
                                     </td>
                                 </tr>
                             {% empty %}
-                                <tr><td colspan="2" class="text-center text-muted">Veri yok</td></tr>
+                                <tr><td colspan="2" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Personel Karşılaştırma — Kategori bazlı başarı oranı -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                    <h6 class="text-muted mb-0">{% trans "Personel Karşılaştırma — Kategori Bazlı Başarı Oranı" %}</h6>
+                    <form method="get" class="d-flex gap-2 align-items-center">
+                        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
+                        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
+                        <select name="compare_category" class="form-select form-select-sm" style="min-width: 240px;"
+                                onchange="this.form.submit()">
+                            {% for opt in category_compare.options %}
+                                <option value="{{ opt.id }}"
+                                    {% if category_compare.selected_id|stringformat:"s" == opt.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ opt.name }}{% if opt.department %} — {{ opt.department }}{% endif %}
+                                </option>
+                            {% empty %}
+                                <option value="">{% trans "Kategori yok" %}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                {% if category_compare.labels %}
+                    <div style="position: relative; height: 320px;">
+                        <canvas id="categoryCompareChart"></canvas>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        {% trans "Başarı: kullanıcı bileti kapattıktan sonra bilet yeniden açılmadıysa." %}
+                    </small>
+                {% else %}
+                    <p class="text-muted text-center mb-0">{% trans "Bu kategoride çözülmüş bilet bulunamadı." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Saatlik dağılım + ortalama çözüm süresi -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">{% trans "Saatlere Göre Bilet Açılma Dağılımı" %}</h6>
+                <div style="position: relative; height: 280px;">
+                    <canvas id="hourlyOpenChart"></canvas>
+                </div>
+                <small class="text-muted d-block mt-2">{% trans "İş yükü planlaması için günün hangi saatlerinde yoğunluk yaşandığını gösterir." %}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">{% trans "Saatlere Göre Ort. Çözüm Süresi (saat)" %}</h6>
+                <div style="position: relative; height: 280px;">
+                    <canvas id="hourlyResolutionChart"></canvas>
+                </div>
+                <small class="text-muted d-block mt-2">{% trans "Açılma saatine göre biletlerin ortalama çözüm süresi." %}</small>
             </div>
         </div>
     </div>
@@ -483,13 +571,112 @@
         }
     });
 
+    // ── 4. Personel Karşılaştırma — Kategori Bazlı Başarı Oranı ─────────
+    let categoryCompareChart = null;
+    const categoryCompareEl = document.getElementById('categoryCompareChart');
+    if (categoryCompareEl) {
+        const labels = {{ category_compare.labels|safe }};
+        const successRates = {{ category_compare.success_rates|safe }};
+        const totals = {{ category_compare.totals|safe }};
+        categoryCompareChart = new Chart(categoryCompareEl, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Başarı Oranı (%)',
+                    data: successRates,
+                    backgroundColor: successRates.map(v =>
+                        v >= 80 ? 'rgba(25,135,84,0.85)' :
+                        v >= 50 ? 'rgba(255,193,7,0.85)' :
+                                  'rgba(220,53,69,0.85)'
+                    ),
+                    borderRadius: 6,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function (item) {
+                                return 'Toplam: ' + totals[item.dataIndex] + ' bilet';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: textColor() } },
+                    y: {
+                        beginAtZero: true, max: 100,
+                        ticks: { color: textColor(), callback: v => '%' + v },
+                        grid: { color: gridColor() },
+                    }
+                }
+            }
+        });
+    }
+
+    // ── 5. Saatlere Göre Bilet Açılma Dağılımı ──────────────────────────
+    const hourlyLabels = {{ hourly_labels|safe }}.map(h => String(h).padStart(2, '0') + ':00');
+    const hourlyOpenChart = new Chart(document.getElementById('hourlyOpenChart'), {
+        type: 'bar',
+        data: {
+            labels: hourlyLabels,
+            datasets: [{
+                label: 'Bilet Sayısı',
+                data: {{ hourly_open_counts|safe }},
+                backgroundColor: 'rgba(13,110,253,0.7)',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: textColor(), maxRotation: 0, autoSkip: true } },
+                y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor() }, grid: { color: gridColor() } }
+            }
+        }
+    });
+
+    // ── 6. Saatlere Göre Ortalama Çözüm Süresi ──────────────────────────
+    const hourlyResolutionChart = new Chart(document.getElementById('hourlyResolutionChart'), {
+        type: 'line',
+        data: {
+            labels: hourlyLabels,
+            datasets: [{
+                label: 'Ort. Çözüm (saat)',
+                data: {{ hourly_avg_resolution|safe }},
+                borderColor: 'rgba(255,159,64,1)',
+                backgroundColor: 'rgba(255,159,64,0.15)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: textColor(), maxRotation: 0, autoSkip: true } },
+                y: { beginAtZero: true, ticks: { color: textColor(), callback: v => v + ' s' }, grid: { color: gridColor() } }
+            }
+        }
+    });
+
     // ── Dark mode geçişinde grafik renklerini güncelle ──────────────────
     const observer = new MutationObserver(function () {
         const c = textColor();
         const g = gridColor();
-
-        [monthlyChart, statusChart, deptChart].forEach(chart => {
-            chart.options.plugins.legend.labels.color = c;
+        const charts = [monthlyChart, statusChart, deptChart, hourlyOpenChart, hourlyResolutionChart];
+        if (categoryCompareChart) charts.push(categoryCompareChart);
+        charts.forEach(chart => {
+            if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                chart.options.plugins.legend.labels.color = c;
+            }
             if (chart.options.scales) {
                 Object.values(chart.options.scales).forEach(scale => {
                     if (scale.ticks) scale.ticks.color = c;

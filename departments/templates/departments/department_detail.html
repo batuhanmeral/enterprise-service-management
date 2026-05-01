@@ -1,49 +1,65 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}{{ department.name }} — Talep Yönetim Sistemi{% endblock %}
 
 {% block content %}
-<div class="row">
 
-    <!-- Sol: Departman bilgileri -->
-    <div class="col-lg-8">
-
-        <!-- Başlık -->
-        <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-                <h1 class="h4 mb-1">{{ department.name }}</h1>
-                <small class="text-muted">Oluşturulma: {{ department.created_at|date:"d.m.Y" }}</small>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{% url 'departments:department_update' department.pk %}" class="btn btn-outline-dark btn-sm">
-                    <i class="bi bi-pencil me-1"></i>Düzenle
-                </a>
-                <a href="{% url 'departments:department_delete' department.pk %}" class="btn btn-outline-danger btn-sm">
-                    <i class="bi bi-trash me-1"></i>Sil
-                </a>
-            </div>
-        </div>
-
-        <!-- Açıklama -->
-        {% if department.description %}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Açıklama</h6>
-                    <p class="mb-0">{{ department.description }}</p>
-                </div>
-            </div>
+<!-- Başlık -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h4 mb-1">{{ department.name }}</h1>
+        <small class="text-muted">
+            <i class="bi bi-person-badge me-1"></i>{% trans "Yönetici:" %}
+            {% if department.manager %}
+                <span class="fw-medium">{{ department.manager.get_full_name|default:department.manager.username }}</span>
+            {% else %}
+                <span class="fst-italic">{% trans "Atanmamış" %}</span>
+            {% endif %}
+            · {% blocktrans with d=department.created_at|date:"d.m.Y" %}Created: {{ d }}{% endblocktrans %}
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        {% if user.role == 'ADMIN' or user.role == 'MANAGER' and user.department_id == department.pk %}
+            <a href="{% url 'departments:department_update' department.pk %}" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-pencil me-1"></i>{% trans "Düzenle" %}
+            </a>
         {% endif %}
+        {% if user.role == 'ADMIN' %}
+            <a href="{% url 'departments:department_delete' department.pk %}" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash me-1"></i>{% trans "Sil" %}
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Açıklama -->
+{% if department.description %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="text-muted mb-2">{% trans "Açıklama" %}</h6>
+            <p class="mb-0">{{ department.description }}</p>
+        </div>
+    </div>
+{% endif %}
+
+<div class="row g-4">
+
+    <!-- Sol Kolon: Kategoriler + Üyeler -->
+    <div class="col-lg-{% if user.role == 'MANAGER' %}12{% else %}8{% endif %}">
 
         <!-- Kategoriler -->
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="text-muted mb-0">
-                        <i class="bi bi-tag me-1"></i>Kategoriler ({{ categories|length }})
+                        <i class="bi bi-tag me-1"></i>{% blocktrans with n=categories|length %}Categories ({{ n }}){% endblocktrans %}
                     </h6>
-                    <a href="{% url 'departments:category_create' department.pk %}" class="btn btn-outline-dark btn-sm">
-                        <i class="bi bi-plus-lg me-1"></i>Kategori Ekle
-                    </a>
+                    {% if user.role == 'ADMIN' or user.role == 'MANAGER' and user.department_id == department.pk %}
+                        <a href="{% url 'departments:category_create' department.pk %}" class="btn btn-outline-dark btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>{% trans "Kategori Ekle" %}
+                        </a>
+                    {% endif %}
                 </div>
                 {% if categories %}
                     <div class="list-group list-group-flush">
@@ -56,33 +72,35 @@
                                     {% endif %}
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-secondary">{{ category.tickets.count }} bilet</span>
-                                    <a href="{% url 'departments:category_update' category.pk %}" class="btn btn-outline-dark btn-sm" title="Düzenle">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="{% url 'departments:category_delete' category.pk %}" class="btn btn-outline-danger btn-sm" title="Sil">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
+                                    <span class="badge bg-secondary">{% blocktrans with n=category.tickets.count %}{{ n }} tickets{% endblocktrans %}</span>
+                                    {% if user.role == 'ADMIN' or user.role == 'MANAGER' and user.department_id == department.pk %}
+                                        <a href="{% url 'departments:category_update' category.pk %}" class="btn btn-outline-dark btn-sm" title="{% trans 'Düzenle' %}">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="{% url 'departments:category_delete' category.pk %}" class="btn btn-outline-danger btn-sm" title="{% trans 'Sil' %}">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted mb-0">Bu departmanda henüz kategori bulunmuyor.</p>
+                    <p class="text-muted mb-0">{% trans "Bu departmanda henüz kategori bulunmuyor." %}</p>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Personel -->
+        <!-- Departman Üyeleri (Personel + Çalışan) -->
         <div class="card border-0 shadow-sm">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="text-muted mb-0">
-                        <i class="bi bi-people me-1"></i>Personel ({{ personnel|length }})
+                        <i class="bi bi-people me-1"></i>{% blocktrans with n=members|length %}Department Members ({{ n }}){% endblocktrans %}
                     </h6>
                     {% if available_personnel %}
                         <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="collapse" data-bs-target="#addPersonnelForm">
-                            <i class="bi bi-plus-lg me-1"></i>Personel Ekle
+                            <i class="bi bi-plus-lg me-1"></i>{% trans "Üye Ekle" %}
                         </button>
                     {% endif %}
                 </div>
@@ -92,7 +110,7 @@
                         <form method="post" action="{% url 'departments:department_add_personnel' department.pk %}" class="d-flex gap-2">
                             {% csrf_token %}
                             <select name="user_id" class="form-select form-select-sm" required>
-                                <option value="">— Boştaki bir personel seçin —</option>
+                                <option value="">{% trans "— Boştaki bir personel seçin —" %}</option>
                                 {% for u in available_personnel %}
                                     <option value="{{ u.pk }}">
                                         {{ u.get_full_name|default:u.username }}
@@ -101,95 +119,128 @@
                                 {% endfor %}
                             </select>
                             <button type="submit" class="btn btn-dark btn-sm">
-                                <i class="bi bi-check2 me-1"></i>Ekle
+                                <i class="bi bi-check2 me-1"></i>{% trans "Ekle" %}
                             </button>
                         </form>
-                        <small class="text-muted d-block mt-2">Sadece henüz bir departmana atanmamış personel rolündeki kullanıcılar listelenir.</small>
+                        <small class="text-muted d-block mt-2">{% trans "Sadece henüz bir departmana atanmamış personel rolündeki kullanıcılar listelenir." %}</small>
                     {% else %}
-                        <p class="text-muted small mb-0">Eklenebilecek boşta personel bulunmuyor.</p>
+                        <p class="text-muted small mb-0">{% trans "Eklenebilecek boşta personel bulunmuyor." %}</p>
                     {% endif %}
                 </div>
 
-                {% if personnel %}
+                {% if members %}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-dark">
                                 <tr>
-                                    <th>Ad Soyad</th>
-                                    <th>Rol</th>
-                                    <th>E-posta</th>
+                                    <th>{% trans "Ad Soyad" %}</th>
+                                    <th>{% trans "Rol" %}</th>
+                                    <th>{% trans "E-posta" %}</th>
+                                    <th>{% trans "Telefon" %}</th>
+                                    {% if user.role == 'ADMIN' or user.role == 'MANAGER' and user.department_id == department.pk %}
+                                        <th class="text-center">{% trans "İşlem" %}</th>
+                                    {% endif %}
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for person in personnel %}
+                                {% for member in members %}
                                     <tr>
-                                        <td>{{ person.get_full_name|default:person.username }}</td>
-                                        <td><span class="badge bg-secondary">{{ person.get_role_display }}</span></td>
-                                        <td class="text-muted">{{ person.email|default:"—" }}</td>
+                                        <td>{{ member.get_full_name|default:member.username }}</td>
+                                        <td>
+                                            {% if member.role == 'AGENT' %}
+                                                <span class="badge bg-primary">{% trans "Personel" %}</span>
+                                            {% elif member.role == 'EMPLOYEE' %}
+                                                <span class="badge bg-info text-dark">{% trans "Çalışan" %}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ member.get_role_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-muted">{{ member.email|default:"—" }}</td>
+                                        <td class="text-muted">{{ member.phone|default:"—" }}</td>
+                                        {% if user.role == 'ADMIN' or user.role == 'MANAGER' and user.department_id == department.pk %}
+                                            <td class="text-center">
+                                                <form method="post"
+                                                      action="{% url 'departments:department_change_member_role' department.pk member.pk %}"
+                                                      class="d-inline">
+                                                    {% csrf_token %}
+                                                    <select name="role"
+                                                            class="form-select form-select-sm d-inline-block"
+                                                            style="width: auto; min-width: 120px;"
+                                                            onchange="this.form.submit()">
+                                                        {% for role_val, role_label in role_choices %}
+                                                            <option value="{{ role_val }}"
+                                                                {% if member.role == role_val %}selected{% endif %}>
+                                                                {{ role_label }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </form>
+                                            </td>
+                                        {% endif %}
                                     </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted mb-0">Bu departmanda henüz personel bulunmuyor.</p>
+                    <p class="text-muted mb-0">{% trans "Bu departmanda henüz üye bulunmuyor." %}</p>
                 {% endif %}
             </div>
         </div>
 
     </div>
 
-    <!-- Sağ: İstatistikler -->
+    <!-- Sağ: Detaylar — Sadece ADMIN görür -->
+    {% if user.role == 'ADMIN' %}
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Detaylar</h6>
+                <h6 class="text-muted mb-3">{% trans "Detaylar" %}</h6>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Yönetici</small>
+                    <small class="text-muted d-block">{% trans "Yönetici" %}</small>
                     <span>
                         <i class="bi bi-person-badge me-1"></i>
                         {% if department.manager %}
                             {{ department.manager.get_full_name|default:department.manager.username }}
                         {% else %}
-                            <span class="text-muted">Atanmamış</span>
+                            <span class="text-muted">{% trans "Atanmamış" %}</span>
                         {% endif %}
                     </span>
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Kategori Sayısı</small>
+                    <small class="text-muted d-block">{% trans "Kategori Sayısı" %}</small>
                     <span><i class="bi bi-tag me-1"></i>{{ categories|length }}</span>
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Personel Sayısı</small>
-                    <span><i class="bi bi-people me-1"></i>{{ personnel|length }}</span>
+                    <small class="text-muted d-block">{% trans "Üye Sayısı" %}</small>
+                    <span><i class="bi bi-people me-1"></i>{{ members|length }}</span>
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Toplam Bilet</small>
+                    <small class="text-muted d-block">{% trans "Toplam Bilet" %}</small>
                     <span><i class="bi bi-ticket-perforated me-1"></i>{{ department.tickets.count }}</span>
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Oluşturulma</small>
+                    <small class="text-muted d-block">{% trans "Oluşturulma" %}</small>
                     <span><i class="bi bi-calendar me-1"></i>{{ department.created_at|date:"d.m.Y H:i" }}</span>
                 </div>
 
                 <div class="mb-0">
-                    <small class="text-muted d-block">Son Güncelleme</small>
+                    <small class="text-muted d-block">{% trans "Son Güncelleme" %}</small>
                     <span><i class="bi bi-clock me-1"></i>{{ department.updated_at|date:"d.m.Y H:i" }}</span>
                 </div>
             </div>
         </div>
 
-        {% if user.role != 'MANAGER' %}
-            <a href="{% url 'departments:department_list' %}" class="btn btn-outline-secondary w-100 mt-3">
-                <i class="bi bi-arrow-left me-1"></i>Departman Listesine Dön
-            </a>
-        {% endif %}
+        <a href="{% url 'departments:department_list' %}" class="btn btn-outline-secondary w-100 mt-3">
+            <i class="bi bi-arrow-left me-1"></i>{% trans "Departman Listesine Dön" %}
+        </a>
     </div>
+    {% endif %}
 
 </div>
 {% endblock %}

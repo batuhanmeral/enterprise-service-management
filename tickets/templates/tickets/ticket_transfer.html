@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Bilet Transfer — Talep Yönetim Sistemi{% endblock %}
 
@@ -7,7 +8,7 @@
     <div class="col-lg-6">
 
         <h1 class="h4 mb-4">
-            <i class="bi bi-send me-2"></i>Bileti Transfer Et
+            <i class="bi bi-send me-2"></i>{% trans "Bileti Transfer Et" %}
         </h1>
 
         <!-- Bilet özeti -->
@@ -16,18 +17,18 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="mb-1">{{ ticket.subject }}</h6>
-                        <small class="text-muted">Bilet #{{ ticket.pk }}</small>
+                        <small class="text-muted">{% blocktrans with pk=ticket.pk %}Ticket #{{ pk }}{% endblocktrans %}</small>
                     </div>
                     <div>
                         {% if ticket.status == 'OPEN' %}
-                            <span class="badge bg-primary">Açık</span>
+                            <span class="badge bg-primary">{% trans "Açık" %}</span>
                         {% elif ticket.status == 'IN_PROGRESS' %}
-                            <span class="badge bg-warning text-dark">İşlemde</span>
+                            <span class="badge bg-warning text-dark">{% trans "İşlemde" %}</span>
                         {% endif %}
                     </div>
                 </div>
                 <div class="mt-2">
-                    <small class="text-muted">Mevcut Departman:</small>
+                    <small class="text-muted">{% trans "Mevcut Departman:" %}</small>
                     <span class="fw-medium">{{ ticket.department.name }}</span>
                 </div>
             </div>
@@ -40,12 +41,12 @@
                     {% csrf_token %}
 
                     <div class="mb-3">
-                        <label for="id_department" class="form-label">Yeni Departman</label>
+                        <label for="id_department" class="form-label">{% trans "Yeni Departman" %}</label>
                         <select name="department"
                                 id="id_department"
                                 class="form-select"
                                 required>
-                            <option value="">Departman seçin...</option>
+                            <option value="">{% trans "Departman seçin..." %}</option>
                             {% for dept in departments %}
                                 <option value="{{ dept.pk }}">{{ dept.name }}</option>
                             {% endfor %}
@@ -53,20 +54,20 @@
                     </div>
 
                     <div class="mb-4">
-                        <label for="id_category" class="form-label">Yeni Kategori <small class="text-muted">(opsiyonel)</small></label>
+                        <label for="id_category" class="form-label">{% trans "Yeni Kategori" %} <small class="text-muted">{% trans "(opsiyonel)" %}</small></label>
                         <select name="category"
                                 id="id_category"
                                 class="form-select"
                                 disabled>
-                            <option value="">Önce departman seçin...</option>
+                            <option value="">{% trans "Önce departman seçin..." %}</option>
                         </select>
                     </div>
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-dark">
-                            <i class="bi bi-send me-1"></i>Transfer Et
+                            <i class="bi bi-send me-1"></i>{% trans "Transfer Et" %}
                         </button>
-                        <a href="{% url 'tickets:ticket_detail' ticket.pk %}" class="btn btn-outline-secondary">İptal</a>
+                        <a href="{% url 'tickets:ticket_detail' ticket.pk %}" class="btn btn-outline-secondary">{% trans "İptal" %}</a>
                     </div>
                 </form>
             </div>

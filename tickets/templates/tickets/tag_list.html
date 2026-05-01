@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Etiketler — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h4 mb-0">
+        <i class="bi bi-tags me-2"></i>{% trans "Etiketler" %}
+    </h1>
+    <a href="{% url 'tickets:tag_create' %}" class="btn btn-dark">
+        <i class="bi bi-plus-lg me-1"></i>{% trans "Yeni Etiket" %}
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        {% if tags %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>{% trans "Etiket Adı" %}</th>
+                            <th>{% trans "Renk Kodu" %}</th>
+                            <th>{% trans "Oluşturulma" %}</th>
+                            <th class="text-end pe-4">{% trans "İşlem" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tag in tags %}
+                            <tr>
+                                <td>
+                                    <span class="badge rounded-pill" style="background-color: {{ tag.color }}; padding: .45em .8em;">
+                                        {{ tag.name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div style="width:16px; height:16px; background-color:{{ tag.color }}; border-radius:4px; margin-right:8px; border:1px solid #dee2e6;"></div>
+                                        <span class="text-muted">{{ tag.color }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-muted">{{ tag.created_at|date:"d.m.Y H:i" }}</td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'tickets:tag_update' tag.pk %}" class="btn btn-outline-dark btn-sm me-1" title="{% trans 'Düzenle' %}">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'tickets:tag_delete' tag.pk %}" class="btn btn-outline-danger btn-sm" title="{% trans 'Sil' %}">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-center text-muted">
+                <p class="mb-0">{% trans "Henüz etiket bulunmuyor." %}</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

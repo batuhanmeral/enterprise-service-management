@@ -5,7 +5,7 @@ from .models import Notification
 
 # Bildirim listesi serializer'ı
 class NotificationSerializer(serializers.ModelSerializer):
-    ticket_subject = serializers.CharField(source='ticket.subject', read_only=True)
+    ticket_subject = serializers.CharField(source='ticket.subject', read_only=True, default=None)
 
     class Meta:
         model = Notification
@@ -14,7 +14,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 # Bildirim detay serializer'ı
 class NotificationDetailSerializer(serializers.ModelSerializer):
-    ticket_subject = serializers.CharField(source='ticket.subject', read_only=True)
+    ticket_subject = serializers.CharField(source='ticket.subject', read_only=True, default=None)
 
     class Meta:
         model = Notification

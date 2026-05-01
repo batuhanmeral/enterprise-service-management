@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Etiketi Sil — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm border-danger">
+            <div class="card-body p-4 text-center">
+                <i class="bi bi-exclamation-triangle-fill text-danger display-4 mb-3 d-block"></i>
+                <h4 class="mb-3">{% trans "Etiketi Sil" %}</h4>
+                
+                <p class="mb-4">
+                    {% blocktrans with name=tag.name %}Are you sure you want to delete tag <strong>"{{ name }}"</strong>?{% endblocktrans %}
+                    <br>
+                    <small class="text-muted">{% trans "Bu etiket kullanıldığı biletlerden kaldırılacaktır." %}</small>
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="{% url 'tickets:tag_list' %}" class="btn btn-outline-secondary">
+                            {% trans "Vazgeç" %}
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i>{% trans "Evet, Sil" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

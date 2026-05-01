@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Bilet #{{ ticket.pk }} — Talep Yönetim Sistemi{% endblock %}
 
@@ -12,59 +13,98 @@
         <div class="d-flex justify-content-between align-items-start mb-3">
             <div>
                 <h1 class="h4 mb-1">{{ ticket.subject }}</h1>
-                <small class="text-muted">Bilet #{{ ticket.pk }} · {{ ticket.created_at|date:"d.m.Y H:i" }}</small>
+                <small class="text-muted">{% blocktrans with pk=ticket.pk created=ticket.created_at|date:"d.m.Y H:i" %}Ticket #{{ pk }} · {{ created }}{% endblocktrans %}</small>
             </div>
             <div class="d-flex gap-2">
                 {% if ticket.priority == 'URGENT' %}
-                    <span class="badge bg-danger fs-6">Acil</span>
+                    <span class="badge bg-danger fs-6">{% trans "Acil" %}</span>
                 {% elif ticket.priority == 'HIGH' %}
-                    <span class="badge bg-warning text-dark fs-6">Yüksek</span>
+                    <span class="badge bg-warning text-dark fs-6">{% trans "Yüksek" %}</span>
                 {% elif ticket.priority == 'NORMAL' %}
-                    <span class="badge bg-secondary fs-6">Normal</span>
+                    <span class="badge bg-secondary fs-6">{% trans "Normal" %}</span>
                 {% elif ticket.priority == 'LOW' %}
-                    <span class="badge bg-light text-dark border fs-6">Düşük</span>
+                    <span class="badge bg-light text-dark border fs-6">{% trans "Düşük" %}</span>
                 {% endif %}
 
                 {% if ticket.status == 'OPEN' %}
-                    <span class="badge bg-primary fs-6">Açık</span>
+                    <span class="badge bg-primary fs-6">{% trans "Açık" %}</span>
                 {% elif ticket.status == 'IN_PROGRESS' %}
-                    <span class="badge bg-warning text-dark fs-6">İşlemde</span>
+                    <span class="badge bg-warning text-dark fs-6">{% trans "İşlemde" %}</span>
                 {% elif ticket.status == 'CLOSED' %}
-                    <span class="badge bg-secondary fs-6">Kapalı</span>
+                    <span class="badge bg-secondary fs-6">{% trans "Kapalı" %}</span>
                 {% endif %}
             </div>
         </div>
+
+        <!-- Etiketler -->
+        {% if ticket.tags.all %}
+            <div class="mb-3 d-flex flex-wrap gap-2">
+                {% for tag in ticket.tags.all %}
+                    <span class="badge rounded-pill" style="background-color: {{ tag.color }}; padding: .45em .8em;">
+                        <i class="bi bi-tag-fill me-1"></i>{{ tag.name }}
+                    </span>
+                {% endfor %}
+            </div>
+        {% endif %}
 
         <!-- Mesaj -->
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
-                <h6 class="text-muted mb-2">Mesaj</h6>
+                <h6 class="text-muted mb-2">{% trans "Mesaj" %}</h6>
                 <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.message }}</p>
             </div>
         </div>
 
-        <!-- Dosya eki -->
-        {% if ticket.attachment %}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body py-3">
-                    <h6 class="text-muted mb-2">Dosya Eki</h6>
-                    <a href="{{ ticket.attachment.url }}" class="text-decoration-none" target="_blank">
-                        <i class="bi bi-paperclip me-1"></i>{{ ticket.attachment.name|cut:"ticket_attachments/" }}
-                    </a>
+        <!-- Dosya ekleri (çoklu) -->
+        {% with ticket.attachments.all as attachments %}
+            {% if attachments %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body py-3">
+                        <h6 class="text-muted mb-2">
+                            <i class="bi bi-paperclip me-1"></i>{% trans "Dosya Ekleri" %}
+                            <span class="badge bg-secondary ms-1">{{ attachments|length }}</span>
+                        </h6>
+                        <ul class="list-unstyled mb-0">
+                            {% for att in attachments %}
+                                <li class="d-flex justify-content-between align-items-center py-1">
+                                    <div>
+                                        <a href="{{ att.file.url }}" class="text-decoration-none" target="_blank">
+                                            <i class="bi bi-file-earmark me-1"></i>{{ att.filename }}
+                                        </a>
+                                        <small class="text-muted ms-2">
+                                            {% if att.uploaded_by %}
+                                                {{ att.uploaded_by.get_full_name|default:att.uploaded_by.username }} ·
+                                            {% endif %}
+                                            {{ att.uploaded_at|date:"d.m.Y H:i" }}
+                                        </small>
+                                    </div>
+                                    {% if att.uploaded_by == user or ticket.sender == user and not ticket.assigned_to or user.role == 'ADMIN' or user.role == 'MANAGER' and user.department == ticket.department %}
+                                        <form method="post" action="{% url 'tickets:ticket_attachment_delete' att.pk %}"
+                                              onsubmit="return confirm('Bu eki silmek istediğinize emin misiniz?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="{% trans 'Sil' %}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
-            </div>
-        {% endif %}
+            {% endif %}
+        {% endwith %}
 
         <!-- Çözüm notu (sadece kapalı biletlerde) -->
         {% if ticket.status == 'CLOSED' and ticket.resolution_note %}
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <h6 class="text-muted mb-2">
-                        <i class="bi bi-check-circle me-1 text-success"></i>Çözüm Notu
+                        <i class="bi bi-check-circle me-1 text-success"></i>{% trans "Çözüm Notu" %}
                     </h6>
                     <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.resolution_note }}</p>
                     {% if ticket.closed_at %}
-                        <small class="text-muted d-block mt-2">Kapatılma: {{ ticket.closed_at|date:"d.m.Y H:i" }}</small>
+                        <small class="text-muted d-block mt-2">{% blocktrans with closed=ticket.closed_at|date:"d.m.Y H:i" %}Closed: {{ closed }}{% endblocktrans %}</small>
                     {% endif %}
                 </div>
             </div>
@@ -75,11 +115,11 @@
             {% if user.department == ticket.department %}
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-body">
-                        <p class="text-muted mb-3">Bu bilet henüz üstlenilmemiş. Üzerinize almak ister misiniz?</p>
+                        <p class="text-muted mb-3">{% trans "Bu bilet henüz üstlenilmemiş. Üzerinize almak ister misiniz?" %}</p>
                         <form method="post" action="{% url 'tickets:ticket_take' ticket.pk %}">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-dark">
-                                <i class="bi bi-person-check me-1"></i>Bileti Üstlen
+                                <i class="bi bi-person-check me-1"></i>{% trans "Bileti Üstlen" %}
                             </button>
                         </form>
                     </div>
@@ -92,19 +132,19 @@
             {% if ticket.assigned_to == user or user.role == 'ADMIN' %}
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-body">
-                        <h6 class="text-muted mb-3">Bileti Kapat</h6>
+                        <h6 class="text-muted mb-3">{% trans "Bileti Kapat" %}</h6>
                         <form method="post" action="{% url 'tickets:ticket_close' ticket.pk %}">
                             {% csrf_token %}
                             <div class="mb-3">
-                                <label for="resolution_note" class="form-label">Çözüm Notu</label>
+                                <label for="resolution_note" class="form-label">{% trans "Çözüm Notu" %}</label>
                                 <textarea name="resolution_note"
                                           id="resolution_note"
                                           class="form-control"
                                           rows="3"
-                                          placeholder="Sorunu nasıl çözdüğünüzü açıklayın..."></textarea>
+                                          placeholder="{% trans 'Sorunu nasıl çözdüğünüzü açıklayın...' %}"></textarea>
                             </div>
                             <button type="submit" class="btn btn-dark">
-                                <i class="bi bi-check-lg me-1"></i>Bileti Kapat
+                                <i class="bi bi-check-lg me-1"></i>{% trans "Bileti Kapat" %}
                             </button>
                         </form>
                     </div>
@@ -116,7 +156,7 @@
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
                 <h6 class="text-muted mb-3">
-                    <i class="bi bi-chat-dots me-1"></i>Mesajlar
+                    <i class="bi bi-chat-dots me-1"></i>{% trans "Mesajlar" %}
                     {% if comments %}<span class="badge bg-secondary ms-1">{{ comments|length }}</span>{% endif %}
                 </h6>
 
@@ -124,41 +164,62 @@
                     <div class="mb-3">
                         {% for comment in comments %}
                             <div class="d-flex mb-3 {% if comment.author == ticket.sender %}flex-row{% else %}flex-row-reverse{% endif %}">
-                                <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                                      style="width:36px;height:36px;font-size:.85rem;">
                                     {% if comment.author %}{{ comment.author.first_name|first|default:comment.author.username|first|upper }}{% else %}?{% endif %}
                                 </div>
-                                <div class="mx-2 {% if comment.author == ticket.sender %}bg-light{% else %}bg-dark text-white{% endif %} rounded p-2 px-3" style="max-width:80%;">
+                                <div class="mx-2 {% if comment.author == ticket.sender %}bg-body-secondary{% else %}bg-primary text-white{% endif %} rounded p-2 px-3" style="max-width:80%;">
                                     <div class="d-flex justify-content-between align-items-center mb-1 gap-3">
                                         <small class="fw-medium">
-                                            {% if comment.author %}{{ comment.author.get_full_name|default:comment.author.username }}{% else %}Silinmiş kullanıcı{% endif %}
+                                            {% if comment.author %}{{ comment.author.get_full_name|default:comment.author.username }}{% else %}{% trans "Silinmiş kullanıcı" %}{% endif %}
                                         </small>
                                         <small class="{% if comment.author == ticket.sender %}text-muted{% else %}text-white-50{% endif %} text-nowrap">
                                             {{ comment.created_at|date:"d.m.Y H:i" }}
                                         </small>
                                     </div>
-                                    <p class="mb-0" style="white-space:pre-wrap;font-size:.9rem;">{{ comment.content }}</p>
+                                    {% if comment.content %}
+                                        <p class="mb-0" style="white-space:pre-wrap;font-size:.9rem;">{{ comment.content }}</p>
+                                    {% endif %}
+                                    {% if comment.attachment %}
+                                        <div class="mt-1">
+                                            <a href="{{ comment.attachment.url }}"
+                                               class="text-decoration-none {% if comment.author == ticket.sender %}text-body{% else %}text-white{% endif %}"
+                                               target="_blank">
+                                                <i class="bi bi-paperclip me-1"></i>
+                                                <small>{{ comment.attachment.name|cut:"comment_attachments/" }}</small>
+                                            </a>
+                                        </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted small mb-3">Henüz mesaj yok. İlk mesajı siz gönderin.</p>
+                    <p class="text-muted small mb-3">{% trans "Henüz mesaj yok. İlk mesajı siz gönderin." %}</p>
                 {% endif %}
 
                 <!-- Yorum formu (bilet aktif ise) -->
                 {% if ticket.status != 'CLOSED' %}
-                    <form method="post" action="{% url 'tickets:ticket_add_comment' ticket.pk %}">
+                    <form method="post" action="{% url 'tickets:ticket_add_comment' ticket.pk %}" enctype="multipart/form-data">
                         {% csrf_token %}
-                        <div class="input-group">
+                        <div class="mb-2">
                             <textarea name="content"
                                       class="form-control"
                                       rows="2"
-                                      placeholder="Mesajınızı yazın..."
-                                      maxlength="2000"
-                                      required></textarea>
-                            <button type="submit" class="btn btn-dark">
-                                <i class="bi bi-send"></i>
+                                      placeholder="{% trans 'Mesajınızı yazın...' %}"
+                                      maxlength="2000"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <label for="comment_attachment" class="btn btn-outline-secondary btn-sm mb-0" title="{% trans 'Dosya ekle' %}">
+                                    <i class="bi bi-paperclip me-1"></i>{% trans "Dosya Ekle" %}
+                                </label>
+                                <input type="file" name="comment_attachment" id="comment_attachment" class="d-none"
+                                       onchange="document.getElementById('file-name-display').textContent = this.files[0]?.name || ''">
+                                <small id="file-name-display" class="text-muted ms-2"></small>
+                            </div>
+                            <button type="submit" class="btn btn-dark btn-sm">
+                                <i class="bi bi-send me-1"></i>{% trans "Gönder" %}
                             </button>
                         </div>
                     </form>
@@ -171,7 +232,7 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <h6 class="text-muted mb-3">
-                        <i class="bi bi-clock-history me-1"></i>Bilet Geçmişi
+                        <i class="bi bi-clock-history me-1"></i>{% trans "Bilet Geçmişi" %}
                     </h6>
                     <div class="list-group list-group-flush">
                         {% for entry in history %}
@@ -182,7 +243,7 @@
                                             {% if entry.actor %}
                                                 {{ entry.actor.get_full_name|default:entry.actor.username }}
                                             {% else %}
-                                                Sistem
+                                                {% trans "Sistem" %}
                                             {% endif %}
                                         </span>
                                         <span class="text-muted">— {{ entry.action }}</span>
@@ -204,22 +265,22 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
-                <h6 class="text-muted mb-3">Detaylar</h6>
+                <h6 class="text-muted mb-3">{% trans "Detaylar" %}</h6>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Talep Sahibi</small>
+                    <small class="text-muted d-block">{% trans "Talep Sahibi" %}</small>
                     <span>
                         <i class="bi bi-person me-1"></i>
                         {% if ticket.sender %}
                             {{ ticket.sender.get_full_name|default:ticket.sender.username }}
                         {% else %}
-                            <span class="text-muted">Silinmiş kullanıcı</span>
+                            <span class="text-muted">{% trans "Silinmiş kullanıcı" %}</span>
                         {% endif %}
                     </span>
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Departman</small>
+                    <small class="text-muted d-block">{% trans "Departman" %}</small>
                     <span>
                         <i class="bi bi-building me-1"></i>
                         {% if ticket.department %}
@@ -231,7 +292,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Kategori</small>
+                    <small class="text-muted d-block">{% trans "Kategori" %}</small>
                     <span>
                         <i class="bi bi-tag me-1"></i>
                         {% if ticket.category %}
@@ -243,35 +304,35 @@
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Öncelik</small>
+                    <small class="text-muted d-block">{% trans "Öncelik" %}</small>
                     <span>
                         <i class="bi bi-flag me-1"></i>
                         {% if ticket.priority == 'URGENT' %}
-                            <span class="badge bg-danger">Acil</span>
+                            <span class="badge bg-danger">{% trans "Acil" %}</span>
                         {% elif ticket.priority == 'HIGH' %}
-                            <span class="badge bg-warning text-dark">Yüksek</span>
+                            <span class="badge bg-warning text-dark">{% trans "Yüksek" %}</span>
                         {% elif ticket.priority == 'NORMAL' %}
-                            <span class="badge bg-secondary">Normal</span>
+                            <span class="badge bg-secondary">{% trans "Normal" %}</span>
                         {% elif ticket.priority == 'LOW' %}
-                            <span class="badge bg-light text-dark border">Düşük</span>
+                            <span class="badge bg-light text-dark border">{% trans "Düşük" %}</span>
                         {% endif %}
                     </span>
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Üstlenen Personel</small>
+                    <small class="text-muted d-block">{% trans "Üstlenen Personel" %}</small>
                     <span>
                         <i class="bi bi-person-badge me-1"></i>
                         {% if ticket.assigned_to %}
                             {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.username }}
                         {% else %}
-                            <span class="text-muted">Henüz atanmadı</span>
+                            <span class="text-muted">{% trans "Henüz atanmadı" %}</span>
                         {% endif %}
                     </span>
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Oluşturulma</small>
+                    <small class="text-muted d-block">{% trans "Oluşturulma" %}</small>
                     <span>
                         <i class="bi bi-calendar me-1"></i>
                         {{ ticket.created_at|date:"d.m.Y H:i" }}
@@ -280,7 +341,7 @@
 
                 {% if ticket.closed_at %}
                     <div class="mb-0">
-                        <small class="text-muted d-block">Kapatılma</small>
+                        <small class="text-muted d-block">{% trans "Kapatılma" %}</small>
                         <span>
                             <i class="bi bi-calendar-check me-1"></i>
                             {{ ticket.closed_at|date:"d.m.Y H:i" }}
@@ -290,10 +351,10 @@
             </div>
         </div>
 
-        <!-- Düzenle butonu (talep sahibi + OPEN, veya ADMIN) -->
-        {% if ticket.status == 'OPEN' and ticket.sender == user or user.role == 'ADMIN' %}
+        <!-- Düzenle butonu — talep sahibi sadece bilet henüz personele atanmamışken (veya ADMIN her zaman) -->
+        {% if user.role == 'ADMIN' or ticket.sender == user and ticket.status == 'OPEN' and not ticket.assigned_to %}
             <a href="{% url 'tickets:ticket_update' ticket.pk %}" class="btn btn-outline-dark w-100 mt-3">
-                <i class="bi bi-pencil me-1"></i>Düzenle
+                <i class="bi bi-pencil me-1"></i>{% trans "Düzenle" %}
             </a>
         {% endif %}
 
@@ -301,7 +362,7 @@
         {% if ticket.status != 'CLOSED' %}
             {% if user.role == 'AGENT' or user.role == 'MANAGER' or user.role == 'ADMIN' %}
                 <a href="{% url 'tickets:ticket_transfer' ticket.pk %}" class="btn btn-outline-dark w-100 mt-3">
-                    <i class="bi bi-send me-1"></i>Transfer Et
+                    <i class="bi bi-send me-1"></i>{% trans "Transfer Et" %}
                 </a>
             {% endif %}
         {% endif %}
@@ -313,7 +374,7 @@
                   class="mt-3">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-danger w-100">
-                    <i class="bi bi-trash me-1"></i>Bileti Sil
+                    <i class="bi bi-trash me-1"></i>{% trans "Bileti Sil" %}
                 </button>
             </form>
         {% endif %}
@@ -326,7 +387,7 @@
                       class="mt-3">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-primary w-100">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i>Yeniden Aç
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>{% trans "Yeniden Aç" %}
                     </button>
                 </form>
             {% endif %}
@@ -334,7 +395,7 @@
 
         <!-- Geri dön -->
         <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-secondary w-100 mt-3">
-            <i class="bi bi-arrow-left me-1"></i>Bilet Listesine Dön
+            <i class="bi bi-arrow-left me-1"></i>{% trans "Bilet Listesine Dön" %}
         </a>
     </div>
 

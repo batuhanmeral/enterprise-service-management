@@ -23,9 +23,8 @@ from .serializers import (
 )
 
 
-# Audit log yardımcı fonksiyonu
-def log_ticket_action(ticket, actor, action):
-    TicketHistory.objects.create(ticket=ticket, actor=actor, action=action)
+# Audit log yardımcı fonksiyonu — SSR view'larıyla aynı (TicketHistory + AuditLog)
+from .views import log_ticket_action  # noqa: E402
 
 
 # Bilet Listeleme ve Oluşturma
@@ -57,10 +56,13 @@ class TicketListCreateAPIView(ListCreateAPIView):
         )
 
         # Rol bazlı erişim kısıtlaması (filtre değil — yetkilendirme)
+        # AGENT/MANAGER: departman biletleri + kendi açtıkları (departmansız ise yalnızca kendi).
         if user.role == Role.ADMIN:
             return qs
         if user.role in (Role.AGENT, Role.MANAGER):
-            return qs.filter(department=user.department)
+            if user.department_id:
+                return qs.filter(Q(department=user.department) | Q(sender=user))
+            return qs.filter(sender=user)
         return qs.filter(sender=user)
 
     def perform_create(self, serializer):

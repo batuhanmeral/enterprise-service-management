@@ -1,5 +1,9 @@
 from django.urls import path
 
+from rest_framework_simplejwt.views import (
+    TokenRefreshView, TokenVerifyView,
+)
+
 from . import api_views
 
 # Auth endpoint'leri: api/v1/auth/
@@ -9,6 +13,9 @@ auth_urlpatterns = [
     path('register/', api_views.RegisterAPIView.as_view(), name='api_register'),
     path('profile/', api_views.ProfileAPIView.as_view(), name='api_profile'),
     path('profile/delete/', api_views.ProfileDeleteAPIView.as_view(), name='api_profile_delete'),
+    # JWT — refresh token ile yeni access üret; verify ile geçerlilik kontrolü
+    path('token/refresh/', TokenRefreshView.as_view(), name='api_token_refresh'),
+    path('token/verify/', TokenVerifyView.as_view(), name='api_token_verify'),
 ]
 
 # User yönetim endpoint'leri: api/v1/users/

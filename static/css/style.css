@@ -15,6 +15,15 @@ main {
     letter-spacing: 0.5px;
 }
 
+/* Navbar bağlantıları — kalın ve büyük harf */
+.navbar .navbar-nav .nav-link,
+.navbar .navbar-nav .nav-link span,
+.navbar .navbar-nav .nav-item button.nav-link {
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px;
+}
+
 /* Tablo */
 .table th {
     font-weight: 600;
@@ -60,12 +69,23 @@ main {
     line-height: 1;
 }
 
-/* Dark modda kart hover gölgesi */
+/* Kart çerçevesi + gölge — açık modda belirgin gölge, karanlık modda beyaz çerçeve */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.12) !important;
+}
+.card:hover {
+    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.18) !important;
+}
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+}
 [data-bs-theme="dark"] .card {
-    border: 3px solid rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.85) !important;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.5) !important;
 }
 [data-bs-theme="dark"] .card:hover {
-    box-shadow: 0 0.25rem 0.75rem rgba(255, 255, 255, 0.06) !important;
+    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.65) !important;
 }
 
 /* Dark modda shadow-sm ayarı */
@@ -87,6 +107,53 @@ main {
 /* Dark modda link renkleri */
 [data-bs-theme="dark"] a.text-dark {
     color: #dee2e6 !important;
+}
+
+/* Dark modda btn-outline-dark görünür olsun (varsayılanda koyu metin koyu zeminde kayboluyor) */
+[data-bs-theme="dark"] .btn-outline-dark {
+    color: #f8f9fa !important;
+    border-color: #f8f9fa !important;
+}
+[data-bs-theme="dark"] .btn-outline-dark:hover,
+[data-bs-theme="dark"] .btn-outline-dark:focus,
+[data-bs-theme="dark"] .btn-outline-dark:active {
+    color: #212529 !important;
+    background-color: #f8f9fa !important;
+    border-color: #f8f9fa !important;
+}
+[data-bs-theme="dark"] .btn-dark {
+    color: #212529 !important;
+    background-color: #f8f9fa !important;
+    border-color: #f8f9fa !important;
+}
+[data-bs-theme="dark"] .btn-dark:hover,
+[data-bs-theme="dark"] .btn-dark:focus {
+    background-color: #e9ecef !important;
+    border-color: #e9ecef !important;
+}
+
+/* Bildirim listesi — açık ve karanlık modda okunabilir */
+.notification-item {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+}
+.notification-unread {
+    background-color: var(--bs-primary-bg-subtle);
+    color: var(--bs-body-color);
+}
+.notification-read {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+.notification-read-text {
+    color: var(--bs-secondary-color);
+}
+[data-bs-theme="dark"] .notification-unread {
+    background-color: rgba(13, 110, 253, 0.18);
+}
+[data-bs-theme="dark"] .notification-read {
+    background-color: var(--bs-tertiary-bg);
 }
 
 /* Hata Sayfaları */
