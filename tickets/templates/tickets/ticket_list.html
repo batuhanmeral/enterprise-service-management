@@ -9,6 +9,9 @@
         <i class="bi bi-list-task me-2"></i>{% trans "Biletler" %}
     </h1>
     <div class="d-flex gap-2">
+        <a href="{% url 'tickets:kanban' %}" class="btn btn-outline-dark">
+            <i class="bi bi-kanban me-1"></i>{% trans "Kanban" %}
+        </a>
         {% if user.role == 'ADMIN' %}
             <a href="{% url 'tickets:tag_list' %}" class="btn btn-outline-dark">
                 <i class="bi bi-tags me-1"></i>{% trans "Etiketleri Yönet" %}
@@ -39,7 +42,7 @@
             <div class="col-md-3">
                 <label for="filter_priority" class="form-label small text-muted mb-1">{% trans "Öncelik" %}</label>
                 <select name="priority" id="filter_priority" class="form-select form-select-sm">
-                    <option value="">Tümü</option>
+                    <option value="">{% trans "Tümü" %}</option>
                     {% for value, label in priority_choices %}
                         <option value="{{ value }}" {% if current_priority == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
@@ -50,7 +53,7 @@
                 <label for="filter_department" class="form-label small text-muted mb-1">{% trans "Departman" %}</label>
                 {% if departments %}
                     <select name="department" id="filter_department" class="form-select form-select-sm">
-                        <option value="">Tümü</option>
+                        <option value="">{% trans "Tümü" %}</option>
                         {% for dept in departments %}
                             <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
                         {% endfor %}
@@ -65,7 +68,7 @@
             <div class="col-md-3">
                 <label for="filter_category" class="form-label small text-muted mb-1">{% trans "Kategori" %}</label>
                 <select name="category" id="filter_category" class="form-select form-select-sm" disabled>
-                    <option value="">Tümü</option>
+                    <option value="">{% trans "Tümü" %}</option>
                     {% for cat in categories %}
                         <option value="{{ cat.pk }}"
                                 data-department="{{ cat.department_id }}"
@@ -82,7 +85,7 @@
                 <div class="col-md-3">
                     <label for="filter_sender" class="form-label small text-muted mb-1">{% trans "Açan" %}</label>
                     <select name="sender" id="filter_sender" class="form-select form-select-sm">
-                        <option value="">Tümü</option>
+                        <option value="">{% trans "Tümü" %}</option>
                         {% for u in filter_users %}
                             <option value="{{ u.pk }}"
                                     data-department="{{ u.department_id|default_if_none:'' }}"
@@ -96,7 +99,7 @@
                 <div class="col-md-3">
                     <label for="filter_assigned_to" class="form-label small text-muted mb-1">{% trans "Üstlenen" %}</label>
                     <select name="assigned_to" id="filter_assigned_to" class="form-select form-select-sm">
-                        <option value="">Tümü</option>
+                        <option value="">{% trans "Tümü" %}</option>
                         {% for u in assignee_users %}
                             <option value="{{ u.pk }}"
                                     data-department="{{ u.department_id|default_if_none:'' }}"
@@ -111,7 +114,7 @@
             <div class="col-md-3">
                 <label for="filter_tag" class="form-label small text-muted mb-1">{% trans "Etiket" %}</label>
                 <select name="tag" id="filter_tag" class="form-select form-select-sm">
-                    <option value="">Tümü</option>
+                    <option value="">{% trans "Tümü" %}</option>
                     {% for tag in tags %}
                         <option value="{{ tag.pk }}" {% if current_tag == tag.pk|stringformat:"s" %}selected{% endif %}>
                             {{ tag.name }}
@@ -131,7 +134,18 @@
                 </select>
             </div>
 
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-md-3 d-flex flex-column">
+                <label class="form-label small text-muted mb-1">{% trans "SLA" %}</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="overdue" value="1"
+                           id="filter_overdue" {% if current_overdue == '1' %}checked{% endif %}>
+                    <label class="form-check-label small" for="filter_overdue">
+                        <i class="bi bi-clock-history text-danger me-1"></i>{% trans "Sadece SLA aşan" %}
+                    </label>
+                </div>
+            </div>
+
+            <div class="col-md-3 d-flex gap-2 align-items-end">
                 <button type="submit" class="btn btn-dark btn-sm w-100">
                     <i class="bi bi-funnel me-1"></i>{% trans "Filtrele" %}
                 </button>
@@ -153,8 +167,10 @@
                     <label for="ticket_bulk_action" class="form-label small text-muted mb-1">{% trans "Toplu İşlem" %}</label>
                     <select name="action" id="ticket_bulk_action" class="form-select form-select-sm" style="min-width:230px;">
                         <option value="">{% trans "— İşlem seçin —" %}</option>
-                        <option value="close">{% trans "Kapat" %}</option>
-                        <option value="reopen">{% trans "Yeniden Aç" %}</option>
+                        <option value="resolve">{% trans "Çözüldü olarak işaretle" %}</option>
+                        {% if user.role == 'ADMIN' %}
+                            <option value="reopen">{% trans "Yeniden Aç (Admin)" %}</option>
+                        {% endif %}
                         <option value="delete">{% trans "Sil" %}</option>
                         <optgroup label="{% trans 'Önceliği Değiştir' %}">
                             {% for value, label in priority_choices %}
@@ -267,8 +283,17 @@
                                 <span class="badge bg-primary">{% trans "Açık" %}</span>
                             {% elif ticket.status == 'IN_PROGRESS' %}
                                 <span class="badge bg-warning text-dark">{% trans "İşlemde" %}</span>
+                            {% elif ticket.status == 'RESOLVED' %}
+                                <span class="badge bg-info text-dark">{% trans "Çözüldü" %}</span>
                             {% elif ticket.status == 'CLOSED' %}
-                                <span class="badge bg-secondary">{% trans "Kapalı" %}</span>
+                                <span class="badge bg-success">{% trans "Kapandı" %}</span>
+                            {% elif ticket.status == 'ESCALATED' %}
+                                <span class="badge bg-danger">{% trans "Eskalasyon" %}</span>
+                            {% endif %}
+                            {% if ticket.is_overdue %}
+                                <span class="badge bg-danger ms-1" title="{% trans 'SLA hedefi aşıldı' %}">
+                                    <i class="bi bi-clock-history"></i> SLA
+                                </span>
                             {% endif %}
                         </td>
                         <td class="text-muted">
@@ -300,7 +325,7 @@
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&sort={{ current_sort }}">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&overdue={{ current_overdue }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-left"></i>
                         </a>
                     </li>
@@ -308,13 +333,13 @@
 
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&sort={{ current_sort }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&overdue={{ current_overdue }}&sort={{ current_sort }}">{{ num }}</a>
                     </li>
                 {% endfor %}
 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&sort={{ current_sort }}">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ current_status }}&priority={{ current_priority }}&department={{ current_department }}&category={{ current_category }}&sender={{ current_sender }}&assigned_to={{ current_assigned_to }}&tag={{ current_tag }}&overdue={{ current_overdue }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>
@@ -412,19 +437,19 @@
 function confirmTicketBulk() {
     const select = document.getElementById('ticket_bulk_action');
     const action = select.value;
-    if (!action) { alert('Lütfen bir işlem seçin.'); return false; }
+    if (!action) { alert('{% trans "Lütfen bir işlem seçin." %}'); return false; }
     const n = document.querySelectorAll('.ticket-row-check:checked').length;
-    if (n === 0) { alert('Lütfen en az bir bilet seçin.'); return false; }
+    if (n === 0) { alert('{% trans "Lütfen en az bir bilet seçin." %}'); return false; }
     const labelMap = {
-        close: 'kapatmak',
-        reopen: 'yeniden açmak',
-        delete: 'silmek',
+        resolve: '{% trans "çözüldü olarak işaretlemek" %}',
+        reopen: '{% trans "yeniden açmak" %}',
+        delete: '{% trans "silmek" %}',
     };
     let label = labelMap[action];
     if (!label && action.startsWith('priority:')) {
-        label = `önceliğini "${select.options[select.selectedIndex].text.replace('→ ', '')}" yapmak`;
+        label = '{% trans "önceliğini" %} "' + select.options[select.selectedIndex].text.replace('→ ', '') + '" {% trans "yapmak" %}';
     }
-    return confirm(`${n} bileti ${label} istediğinize emin misiniz?`);
+    return confirm(`${n} {% trans "bileti" %} ${label} {% trans "istediğinize emin misiniz?" %}`);
 }
 </script>
 {% endblock %}

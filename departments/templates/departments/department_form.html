@@ -37,21 +37,11 @@
                         {% endif %}
                     </div>
 
-                    <!-- Yönetici -->
-                    <div class="mb-3">
-                        <label for="id_manager" class="form-label">{% trans "Yönetici" %} <small class="text-muted">{% trans "(opsiyonel)" %}</small></label>
-                        <select name="manager"
-                                id="id_manager"
-                                class="form-select">
-                            <option value="">{% trans "Yönetici seçin..." %}</option>
-                            {% for choice in form.manager.field.queryset %}
-                                <option value="{{ choice.pk }}"
-                                    {% if form.manager.value|stringformat:"s" == choice.pk|stringformat:"s" %}selected{% endif %}>
-                                    {{ choice.get_full_name|default:choice.username }} ({{ choice.get_role_display }})
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                    <!-- Yönetici alanı kaldırıldı —
+                         Yöneticiler artık User.role=MANAGER + User.department üzerinden türetilir.
+                         Bir kullanıcıyı bu departmanın yöneticisi yapmak için: kullanıcının
+                         departmanını bu olarak ayarlayın ve rolünü MANAGER'a yükseltin
+                         (departman üyeleri tablosundan veya admin panelinden). -->
 
                     <!-- Açıklama -->
                     <div class="mb-4">

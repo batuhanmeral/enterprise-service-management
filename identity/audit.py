@@ -1,9 +1,3 @@
-"""Sistem genelinde audit log helper'ı.
-
-Kullanım:
-    from identity.audit import audit_log, AuditCategory
-    audit_log(request, AuditCategory.USER, 'Kullanıcı oluşturuldu', target=user)
-"""
 from .models import AuditLog
 
 
@@ -21,12 +15,6 @@ def _client_ip(request):
 
 def audit_log(request, category, action, target=None, actor=None,
               department=None, ticket=None):
-    """Tek bir audit kaydı oluşturur.
-
-    request: Django request (IP ve actor için). Anonim/login öncesi olaylar için None olabilir.
-    actor: Açıkça belirtilirse request.user yerine kullanılır (örn. kayıt sırasında).
-    target: __str__ alınıp target_repr'a yazılır.
-    """
     if actor is None and request is not None:
         u = getattr(request, 'user', None)
         if u is not None and u.is_authenticated:

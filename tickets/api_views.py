@@ -7,6 +7,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from departments.models import Department, Category
@@ -14,11 +15,12 @@ from identity.models import Role, User
 from notifications.models import Notification
 
 from .filters import TicketFilter
-from .models import Ticket, TicketComment, Status as TicketStatus
+from .models import Ticket, TicketComment, Status as TicketStatus, TicketActionType
 from .serializers import (
     TicketListSerializer, TicketDetailSerializer,
     TicketCreateSerializer, TicketUpdateSerializer,
-    TicketCloseSerializer, TicketTransferSerializer,
+    TicketResolveSerializer, TicketRejectResolutionSerializer,
+    TicketCsatSerializer, TicketTransferSerializer,
     TicketCommentSerializer,
 )
 
@@ -39,6 +41,13 @@ class TicketListCreateAPIView(ListCreateAPIView):
     ordering = ['-created_at']
     # SearchFilter: ?search=fatura
     search_fields = ['subject', 'message']
+
+    # POST için scope-throttle (saatte 30 bilet/kullanıcı) — spam koruması
+    def get_throttles(self):
+        if self.request.method == 'POST':
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+    throttle_scope = 'ticket_create'
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -71,7 +80,10 @@ class TicketListCreateAPIView(ListCreateAPIView):
         sender = serializer.validated_data.pop('sender', None) if user.role == Role.ADMIN else None
         sender = sender or user
         ticket = serializer.save(sender=sender, status=TicketStatus.OPEN)
-        log_ticket_action(ticket, user, 'Bilet oluşturuldu.')
+        log_ticket_action(ticket, user, 'Bilet oluşturuldu.',
+                          action_type=TicketActionType.CREATED)
+        from .views import _notify_department_on_new_ticket
+        _notify_department_on_new_ticket(ticket, exclude_user=user)
 
 
 # Bilet Detay, Güncelleme ve Silme
@@ -116,7 +128,8 @@ class TicketDetailAPIView(RetrieveUpdateDestroyAPIView):
             serializer.validated_data.pop('assigned_to', None)
 
         serializer.save()
-        log_ticket_action(ticket, user, 'Bilet güncellendi.')
+        log_ticket_action(ticket, user, 'Bilet güncellendi.',
+                          action_type=TicketActionType.UPDATED)
 
     def perform_destroy(self, instance):
         user = self.request.user
@@ -171,7 +184,8 @@ class TicketTakeAPIView(APIView):
             )
 
         ticket.take_into_process(personnel=user)
-        log_ticket_action(ticket, user, f'{user.get_full_name() or user.username} bileti üstlendi.')
+        log_ticket_action(ticket, user, f'{user.get_full_name() or user.username} bileti üstlendi.',
+                          action_type=TicketActionType.TAKEN)
 
         # Talep sahibine bildirim
         if ticket.sender:
@@ -188,15 +202,15 @@ class TicketTakeAPIView(APIView):
         return Response(TicketDetailSerializer(ticket).data)
 
 
-# Bilet Kapatma (IN_PROGRESS → CLOSED)
+# Bileti çözüldü olarak işaretleme (IN_PROGRESS → RESOLVED, talep sahibinin onayı bekleniyor)
 
 
 @extend_schema(
     tags=['tickets'],
-    request=TicketCloseSerializer,
+    request=TicketResolveSerializer,
     responses={200: TicketDetailSerializer, 400: OpenApiResponse(), 403: OpenApiResponse()},
 )
-class TicketCloseAPIView(APIView):
+class TicketResolveAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -208,34 +222,143 @@ class TicketCloseAPIView(APIView):
 
         if not (is_assigned or is_admin):
             return Response(
-                {'detail': 'Sadece bileti üstlenen personel veya Admin kapatabilir.'},
+                {'detail': 'Sadece bileti üstlenen personel veya Admin çözüm işaretleyebilir.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         if ticket.status != TicketStatus.IN_PROGRESS:
             return Response(
-                {'detail': 'Sadece "İşlemde" durumundaki biletler kapatılabilir.'},
+                {'detail': 'Sadece "İşlemde" durumundaki biletler çözüldü olarak işaretlenebilir.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = TicketCloseSerializer(data=request.data)
+        serializer = TicketResolveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         resolution_note = serializer.validated_data['resolution_note']
-        ticket.close(resolution_note=resolution_note)
-        log_ticket_action(ticket, user, f'Bilet kapatıldı. Çözüm: {resolution_note[:100]}')
+        ticket.mark_resolved(resolution_note=resolution_note)
+        log_ticket_action(
+            ticket, user, f'Bilet çözüldü olarak işaretlendi. Çözüm: {resolution_note[:100]}',
+            action_type=TicketActionType.RESOLVED,
+        )
 
-        # Talep sahibine bildirim
         if ticket.sender:
             Notification.objects.create(
                 recipient=ticket.sender,
                 ticket=ticket,
                 message=(
-                    f'Talebiniz "{ticket.subject}" (#{ticket.pk}) '
-                    f'çözülmüş ve kapatılmıştır.'
+                    f'Talebiniz "{ticket.subject}" (#{ticket.pk}) çözüldü olarak işaretlendi. '
+                    f'Lütfen onaylayın (3 gün içinde otomatik kapanır).'
                 ),
             )
 
+        return Response(TicketDetailSerializer(ticket).data)
+
+
+# Çözüm onayı (RESOLVED → CLOSED, sender)
+
+
+@extend_schema(
+    tags=['tickets'],
+    request=None,
+    responses={200: TicketDetailSerializer, 400: OpenApiResponse(), 403: OpenApiResponse()},
+)
+class TicketConfirmResolutionAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        ticket = get_object_or_404(Ticket, pk=pk)
+
+        if ticket.sender != user:
+            return Response({'detail': 'Sadece talep sahibi onay verebilir.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        if ticket.status != TicketStatus.RESOLVED:
+            return Response({'detail': 'Sadece "Çözüldü" biletler için geçerli.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        ticket.confirm_resolution()
+        log_ticket_action(
+            ticket, user, 'Talep sahibi sorununun çözüldüğünü onayladı; bilet kapatıldı.',
+            action_type=TicketActionType.RESOLUTION_CONFIRMED,
+        )
+        return Response(TicketDetailSerializer(ticket).data)
+
+
+# Çözüm reddi (RESOLVED → IN_PROGRESS / ESCALATED, sender, gerekçe zorunlu)
+
+
+@extend_schema(
+    tags=['tickets'],
+    request=TicketRejectResolutionSerializer,
+    responses={200: TicketDetailSerializer, 400: OpenApiResponse(), 403: OpenApiResponse()},
+)
+class TicketRejectResolutionAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        ticket = get_object_or_404(Ticket, pk=pk)
+
+        if ticket.sender != user:
+            return Response({'detail': 'Sadece talep sahibi red verebilir.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        if ticket.status != TicketStatus.RESOLVED:
+            return Response({'detail': 'Sadece "Çözüldü" biletler reddedilebilir.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TicketRejectResolutionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data['reason']
+
+        reopened = ticket.reject_resolution(reason)
+        if reopened:
+            log_ticket_action(
+                ticket, user,
+                f'Talep sahibi çözümü reddetti (#{ticket.reopen_count}/2). Gerekçe: {reason[:120]}',
+                action_type=TicketActionType.RESOLUTION_REJECTED,
+            )
+        else:
+            log_ticket_action(
+                ticket, user,
+                f'Çözüm 3. kez reddedildi; bilet eskalasyona alındı. Gerekçe: {reason[:120]}',
+                action_type=TicketActionType.ESCALATED,
+            )
+        return Response(TicketDetailSerializer(ticket).data)
+
+
+# CSAT puanlama (CLOSED, sender, 1-5)
+
+
+@extend_schema(
+    tags=['tickets'],
+    request=TicketCsatSerializer,
+    responses={200: TicketDetailSerializer, 400: OpenApiResponse(), 403: OpenApiResponse()},
+)
+class TicketCsatAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        ticket = get_object_or_404(Ticket, pk=pk)
+
+        if ticket.sender != user:
+            return Response({'detail': 'Sadece talep sahibi puan verebilir.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        if ticket.status != TicketStatus.CLOSED:
+            return Response({'detail': 'Sadece kapanmış biletler puanlanabilir.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if ticket.csat_rating is not None:
+            return Response({'detail': 'Bu bilet için zaten puan verilmiş.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TicketCsatSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ticket.set_csat(serializer.validated_data['rating'])
+        log_ticket_action(
+            ticket, user, f'Memnuniyet puanı verildi: {ticket.csat_rating}/5',
+            action_type=TicketActionType.CSAT_RATED,
+        )
         return Response(TicketDetailSerializer(ticket).data)
 
 
@@ -268,9 +391,9 @@ class TicketTransferAPIView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-        if ticket.status == TicketStatus.CLOSED:
+        if ticket.status in (TicketStatus.RESOLVED, TicketStatus.CLOSED, TicketStatus.ESCALATED):
             return Response(
-                {'detail': 'Kapalı biletler transfer edilemez.'},
+                {'detail': 'Bu durumdaki biletler transfer edilemez.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -292,6 +415,7 @@ class TicketTransferAPIView(APIView):
         log_ticket_action(
             ticket, user,
             f'Bilet {old_department.name if old_department else "?"} → {new_department.name} departmanına transfer edildi.',
+            action_type=TicketActionType.TRANSFERRED,
         )
 
         # Talep sahibine bildirim
@@ -315,6 +439,11 @@ class TicketTransferAPIView(APIView):
                     f'{new_department.name} departmanına transfer edildi.'
                 ),
             )
+
+        # Yeni departman ekibine giriş + eski departman ekibine çıkış bildirimi
+        from .views import _notify_department_on_new_ticket, _notify_department_on_ticket_left
+        _notify_department_on_new_ticket(ticket, exclude_user=user)
+        _notify_department_on_ticket_left(ticket, old_department, exclude_user=user)
 
         return Response(TicketDetailSerializer(ticket).data)
 
@@ -374,23 +503,21 @@ class TicketReopenAPIView(APIView):
         user = request.user
         ticket = get_object_or_404(Ticket, pk=pk)
 
-        is_sender = (ticket.sender == user)
-        is_admin = (user.role == Role.ADMIN)
-
-        if not (is_sender or is_admin):
+        if user.role != Role.ADMIN:
             return Response(
-                {'detail': 'Sadece talep sahibi veya Admin bileti yeniden açabilir.'},
+                {'detail': 'Sadece Admin kilitlenmiş bir bileti yeniden açabilir.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if ticket.status != TicketStatus.CLOSED:
+        if ticket.status not in (TicketStatus.CLOSED, TicketStatus.ESCALATED):
             return Response(
-                {'detail': 'Sadece kapalı biletler yeniden açılabilir.'},
+                {'detail': 'Sadece kilitli (Kapalı veya Eskalasyon) biletler yeniden açılabilir.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         ticket.reopen()
-        log_ticket_action(ticket, user, 'Bilet yeniden açıldı.')
+        log_ticket_action(ticket, user, 'Bilet yeniden açıldı.',
+                          action_type=TicketActionType.REOPENED)
 
         # Departman personeline bildirim
         if ticket.department:

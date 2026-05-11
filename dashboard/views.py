@@ -20,8 +20,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             my_tickets = Ticket.objects.filter(sender=user)
             context['my_open'] = my_tickets.filter(status=Status.OPEN).count()
             context['my_in_progress'] = my_tickets.filter(status=Status.IN_PROGRESS).count()
+            context['my_resolved'] = my_tickets.filter(status=Status.RESOLVED).count()
             context['my_closed'] = my_tickets.filter(status=Status.CLOSED).count()
             context['recent_tickets'] = my_tickets.select_related('department')[:5]
+            # Onay ya da puan bekleyen biletlerini hızlı göster
+            context['awaiting_action'] = my_tickets.filter(
+                Q(status=Status.RESOLVED) |
+                Q(status=Status.CLOSED, csat_rating__isnull=True),
+            ).select_related('department', 'assigned_to')[:5]
 
         # Personel (AGENT): Departman bilet havuzu
         elif user.role == Role.AGENT:
@@ -67,7 +73,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             context['dept_total'] = dept_tickets.count()
             context['dept_open'] = dept_tickets.filter(status=Status.OPEN).count()
             context['dept_in_progress'] = dept_tickets.filter(status=Status.IN_PROGRESS).count()
+            context['dept_resolved'] = dept_tickets.filter(status=Status.RESOLVED).count()
             context['dept_closed'] = dept_tickets.filter(status=Status.CLOSED).count()
+            context['dept_escalated'] = dept_tickets.filter(status=Status.ESCALATED).count()
 
             # Personel iş yükü
             from identity.models import User
@@ -87,7 +95,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             context['total_tickets'] = Ticket.objects.count()
             context['total_open'] = Ticket.objects.filter(status=Status.OPEN).count()
             context['total_in_progress'] = Ticket.objects.filter(status=Status.IN_PROGRESS).count()
+            context['total_resolved'] = Ticket.objects.filter(status=Status.RESOLVED).count()
             context['total_closed'] = Ticket.objects.filter(status=Status.CLOSED).count()
+            context['total_escalated'] = Ticket.objects.filter(status=Status.ESCALATED).count()
 
             from identity.models import User
             context['pending_users_count'] = User.objects.filter(is_active=False).count()

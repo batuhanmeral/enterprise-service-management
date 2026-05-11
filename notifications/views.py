@@ -1,6 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView
 from django.http import HttpResponseForbidden
 from django.contrib import messages
@@ -64,10 +65,8 @@ def notification_mark_read_view(request, pk):
 
 # Tüm bildirimleri toplu okundu olarak işaretle
 @login_required
+@require_POST
 def notification_mark_all_read_view(request):
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
-
     count = Notification.objects.filter(
         recipient=request.user,
         is_read=False,
@@ -79,10 +78,8 @@ def notification_mark_all_read_view(request):
 
 # Bildirim silme
 @login_required
+@require_POST
 def notification_delete_view(request, pk):
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
-
     notification = get_object_or_404(Notification, pk=pk)
 
     # Yetki kontrolü: Sadece bildirimin alıcısı silebilir

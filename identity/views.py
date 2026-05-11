@@ -5,34 +5,37 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, get_object_or_404
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, FormView, ListView, DetailView, CreateView, UpdateView
 from django.urls import reverse_lazy
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 from django import forms
 
-from django.db.models import Max
+from django.db.models import Case, IntegerField, Max, Q, When
+
+from rest_framework.authtoken.models import Token
 
 from .models import User, Role
 from .audit import audit_log, AuditCategory
-from tickets.models import Ticket, TicketHistory
-
-
-# Audit log action prefix sabitleri — `log_ticket_action` çağrılarıyla senkron olmalı
-TICKET_CLOSE_ACTION_PREFIX = 'Bilet kapatıldı'
-TICKET_REOPEN_ACTION_PREFIX = 'Bilet yeniden açıldı'
+from departments.models import Department
+from notifications.models import Notification
+from tickets.models import Ticket, TicketHistory, TicketActionType
 
 
 def _build_user_resolution_stats(profile_user):
     """Bir personelin çözdüğü biletleri ve kategori başarı oranlarını hesaplar.
 
-    Başarı kuralı: Kullanıcının bir bileti kapattığı son zaman damgasından sonra
-    bilet yeniden açılmamışsa "başarılı"; açılmışsa "başarısız".
+    Başarı kuralı: Kullanıcının son kapatma aksiyonu biletin en son kapatmasıysa,
+    talep sahibi çözümü onayladıysa ve kapanıştan sonra bilet yeniden açılmadıysa
+    "başarılı" sayılır.
+
+    Sorgular `action_type` enum'u üzerinden yapılır — text değişikliklerinden bağımsız.
     """
     # Kullanıcının her bilete yaptığı son kapatma zamanı
     close_events = (
         TicketHistory.objects
-        .filter(actor=profile_user, action__startswith=TICKET_CLOSE_ACTION_PREFIX)
+        .filter(actor=profile_user, action_type=TicketActionType.CLOSED)
         .values('ticket_id')
         .annotate(latest_close=Max('created_at'))
     )
@@ -42,6 +45,15 @@ def _build_user_resolution_stats(profile_user):
         return [], []
 
     ticket_ids = list(close_map.keys())
+    # Biletin genelindeki en son kapatma zamanı (aktor bağımsız)
+    latest_close_all = (
+        TicketHistory.objects
+        .filter(ticket_id__in=ticket_ids, action_type=TicketActionType.CLOSED)
+        .values('ticket_id')
+        .annotate(latest_close=Max('created_at'))
+    )
+    latest_close_map = {e['ticket_id']: e['latest_close'] for e in latest_close_all}
+
     tickets = (
         Ticket.objects
         .filter(pk__in=ticket_ids)
@@ -49,9 +61,13 @@ def _build_user_resolution_stats(profile_user):
     )
 
     # Bu biletlerdeki tüm reopen olayları (zaman damgası ile)
+    # REOPENED veya RESOLUTION_REJECTED — her ikisi de bileti yeniden açar
     reopen_events = (
         TicketHistory.objects
-        .filter(ticket_id__in=ticket_ids, action__startswith=TICKET_REOPEN_ACTION_PREFIX)
+        .filter(
+            ticket_id__in=ticket_ids,
+            action_type__in=[TicketActionType.REOPENED, TicketActionType.RESOLUTION_REJECTED],
+        )
         .values('ticket_id', 'created_at')
     )
     reopen_map = {}
@@ -61,11 +77,13 @@ def _build_user_resolution_stats(profile_user):
     solved_list = []
     for t in tickets:
         latest_close = close_map[t.pk]
+        is_latest_closer = latest_close == latest_close_map.get(t.pk)
         was_reopened = any(rt > latest_close for rt in reopen_map.get(t.pk, []))
+        is_approved = t.resolution_confirmed is True
         solved_list.append({
             'ticket': t,
             'closed_at': latest_close,
-            'is_success': not was_reopened,
+            'is_success': (is_latest_closer and is_approved and not was_reopened),
         })
     solved_list.sort(key=lambda x: x['closed_at'], reverse=True)
 
@@ -165,7 +183,15 @@ def logout_view(request):
     return redirect('identity:login')
 
 
-# Kayıt formu
+# Kayıt sırasında seçilebilen roller — ADMIN HARİÇ.
+# ADMIN sadece mevcut adminlerin oluşturabildiği bir roldür (UserCreateView).
+REGISTER_ROLE_CHOICES = [
+    (r.value, r.label) for r in Role if r != Role.ADMIN
+]
+
+
+# Kayıt formu — kullanıcı opsiyonel olarak rol ve departman talep edebilir;
+# admin onaylarken bu talepleri görür ve gerekirse değiştirebilir.
 class RegisterForm(forms.ModelForm):
     password = forms.CharField(
         label='Şifre',
@@ -181,12 +207,30 @@ class RegisterForm(forms.ModelForm):
             'placeholder': 'Şifrenizi tekrar girin',
         }),
     )
+    # Opsiyonel rol talebi — ADMIN listede yok (yetki yükseltme önlenir)
+    role = forms.ChoiceField(
+        label='Rol',
+        required=False,
+        choices=[('', '— Seçilmedi —')] + REGISTER_ROLE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    # Opsiyonel departman talebi
+    department = forms.ModelChoiceField(
+        label='Departman',
+        required=False,
+        queryset=None,                               # __init__'te doldurulur
+        empty_label='— Seçilmedi —',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
 
     class Meta:
         model = User
-        # Kayıt sırasında rol/departman seçilemez — yetki yükseltme önlenir.
-        # Yeni hesaplar EMPLOYEE rolünde, departmansız ve pasif olarak oluşur.
-        fields = ['username', 'first_name', 'last_name', 'email', 'phone']
+        fields = ['username', 'first_name', 'last_name', 'email', 'phone',
+                  'role', 'department']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['department'].queryset = Department.objects.order_by('name')
 
     def clean_username(self):
         username = self.cleaned_data.get('username', '').strip()
@@ -221,14 +265,25 @@ class RegisterForm(forms.ModelForm):
             raise forms.ValidationError('Şifreler eşleşmiyor.')
         return password_confirm
 
+    def clean_role(self):
+        # ADMIN seçimi POST manipülasyonu ile bile kabul edilmez (defansif kontrol)
+        role = self.cleaned_data.get('role') or ''
+        if role == Role.ADMIN:
+            raise forms.ValidationError('Admin rolü kayıt sırasında seçilemez.')
+        return role
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data['password'])
-        # Hesap pasif olarak oluşturulur — admin onayı gerekir.
-        # Rol/departman güvenlik gereği serializer'da değil burada zorlanır.
+        # Talep edilen rol/departman korunur ama hesap pasif —
+        # ADMIN onaylayana kadar giriş yapılamaz, admin gerekirse değiştirir.
+        # Rol seçilmediyse varsayılan EMPLOYEE.
+        if not self.cleaned_data.get('role'):
+            user.role = Role.EMPLOYEE
+        # Defansif: ADMIN değerinin form üzerinden sızmasını önle
+        if user.role == Role.ADMIN:
+            user.role = Role.EMPLOYEE
         user.is_active = False
-        user.role = Role.EMPLOYEE
-        user.department = None
         if commit:
             user.save()
         return user
@@ -241,11 +296,14 @@ class RegisterView(FormView):
 
     def form_valid(self, form):
         new_user = form.save()
+        # Talep edilen rol/departman audit kaydında ve bildirimde belirtilir
+        request_summary = f'rol: {new_user.get_role_display()}'
+        if new_user.department:
+            request_summary += f', departman: {new_user.department.name}'
         audit_log(self.request, AuditCategory.USER,
-                  f'Yeni kullanıcı kaydı (onay bekliyor): {new_user.username}',
+                  f'Yeni kullanıcı kaydı (onay bekliyor): {new_user.username} ({request_summary})',
                   actor=None, target=new_user)
         # Tüm aktif ADMIN'lere onay bekleyen kullanıcı bildirimi gönder
-        from notifications.models import Notification
         admins = User.objects.filter(role=Role.ADMIN, is_active=True)
         full_name = new_user.get_full_name() or new_user.username
         Notification.objects.bulk_create([
@@ -253,8 +311,8 @@ class RegisterView(FormView):
                 recipient=admin,
                 ticket=None,
                 message=(
-                    f'Yeni kullanıcı kaydı: "{full_name}" (@{new_user.username}) '
-                    f'onayınızı bekliyor.'
+                    f'Yeni kullanıcı kaydı: "{full_name}" (@{new_user.username}) — '
+                    f'{request_summary}. Onayınızı bekliyor.'
                 ),
             )
             for admin in admins
@@ -284,10 +342,22 @@ def profile_update_view(request):
         return redirect('identity:profile')
 
     user = request.user
+    phone_raw = request.POST.get('phone', '').strip()
+    phone_value = None
+    if phone_raw:
+        digits = re.sub(r'\D', '', phone_raw)
+        if len(digits) != PHONE_DIGIT_COUNT or not digits.startswith('0'):
+            messages.error(
+                request,
+                f'Telefon numarası {PHONE_DIGIT_COUNT} haneli olmalı ve "0" ile başlamalıdır.',
+            )
+            return redirect('identity:profile')
+        phone_value = digits
+
     user.first_name = request.POST.get('first_name', '').strip()
     user.last_name = request.POST.get('last_name', '').strip()
     user.email = request.POST.get('email', '').strip()
-    user.phone = request.POST.get('phone', '').strip() or None
+    user.phone = phone_value
     update_fields = ['first_name', 'last_name', 'email', 'phone']
 
     if 'avatar' in request.FILES:
@@ -323,10 +393,8 @@ def password_change_view(request):
 
 # Kullanıcı kendi hesabını siler (deaktif eder ve çıkış yapar)
 @login_required
+@require_POST
 def profile_delete_view(request):
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
-
     user = request.user
     username = user.username
 
@@ -369,6 +437,16 @@ class UserListView(AdminRequiredMixin, ListView):
     def get_queryset(self):
         qs = User.objects.select_related('department')
 
+        # Serbest arama (?q=ahmet) — username/ad/soyad/email içinde arar
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(
+                Q(username__icontains=q)
+                | Q(first_name__icontains=q)
+                | Q(last_name__icontains=q)
+                | Q(email__icontains=q)
+            )
+
         # Rol filtresi (?role=ADMIN)
         role_filter = self.request.GET.get('role')
         if role_filter and role_filter in dict(Role.choices):
@@ -388,13 +466,25 @@ class UserListView(AdminRequiredMixin, ListView):
         elif status_filter == 'inactive':
             qs = qs.filter(is_active=False)
 
-        # Sıralama (?sort=username|-username|date_joined|-date_joined|role|department)
+        # Sıralama (?sort=username|-username|role|department)
         sort = self.request.GET.get('sort', 'username')
+        if sort in ('role', '-role'):
+            role_order = Case(
+                When(role=Role.ADMIN, then=0),
+                When(role=Role.MANAGER, then=1),
+                When(role=Role.AGENT, then=2),
+                When(role=Role.EMPLOYEE, then=3),
+                default=4,
+                output_field=IntegerField(),
+            )
+            qs = qs.annotate(role_order=role_order)
+            if sort == 'role':
+                return qs.order_by('role_order', 'username')
+            return qs.order_by('-role_order', 'username')
+
         allowed_sorts = {
             'username': 'username',
             '-username': '-username',
-            'date_joined': 'date_joined',
-            '-date_joined': '-date_joined',
             'role': 'role',
             '-role': '-role',
             'department': 'department__name',
@@ -406,8 +496,6 @@ class UserListView(AdminRequiredMixin, ListView):
         return qs
 
     def get_context_data(self, **kwargs):
-        from departments.models import Department
-
         context = super().get_context_data(**kwargs)
         # Onay bekleyen kullanıcı sayısı (filtrelerden bağımsız tüm pasifler)
         context['pending_count'] = User.objects.filter(is_active=False).count()
@@ -417,6 +505,7 @@ class UserListView(AdminRequiredMixin, ListView):
         context['departments'] = Department.objects.order_by('name')
 
         # Mevcut filtre değerleri (formda seçili göstermek için)
+        context['current_q'] = self.request.GET.get('q', '')
         context['current_role'] = self.request.GET.get('role', '')
         context['current_department'] = self.request.GET.get('department', '')
         context['current_status'] = self.request.GET.get('status', '')
@@ -433,7 +522,6 @@ class UserDetailView(AdminRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         profile_user = self.object
         context['sent_tickets_count'] = profile_user.sent_tickets.count()
-        context['assigned_tickets_count'] = profile_user.assigned_tickets.count()
         context['activity'] = (
             TicketHistory.objects
             .filter(actor=profile_user)
@@ -523,12 +611,10 @@ class UserUpdateView(AdminRequiredMixin, UpdateView):
 # Henüz onaylanmamış (pasif) hesaplar da kalıcı silinir — aksi halde "Onay Bekleyenler"
 # listesinde geri görünürlerdi.
 @login_required
+@require_POST
 def user_delete_view(request, pk):
     if request.user.role != Role.ADMIN:
         return HttpResponseForbidden('Bu işlem için yetkiniz bulunmamaktadır.')
-
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
 
     user = get_object_or_404(User, pk=pk)
 
@@ -539,7 +625,6 @@ def user_delete_view(request, pk):
 
     username = user.username
     # API token'larını önce iptal et (varsa)
-    from rest_framework.authtoken.models import Token
     Token.objects.filter(user=user).delete()
     user.delete()
     audit_log(request, AuditCategory.USER, f'Kullanıcı kalıcı silindi: {username}',
@@ -550,12 +635,10 @@ def user_delete_view(request, pk):
 
 # Kullanıcıyı deaktif et / aktif et — Sadece ADMIN. Silme değil; sadece is_active toggle.
 @login_required
+@require_POST
 def user_deactivate_view(request, pk):
     if request.user.role != Role.ADMIN:
         return HttpResponseForbidden('Bu işlem için yetkiniz bulunmamaktadır.')
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
-
     user = get_object_or_404(User, pk=pk)
     if user == request.user:
         messages.warning(request, 'Kendi hesabınızı deaktif edemezsiniz.')
@@ -565,7 +648,6 @@ def user_deactivate_view(request, pk):
         user.is_active = False
         user.save(update_fields=['is_active'])
         # API token'larını da iptal et
-        from rest_framework.authtoken.models import Token
         Token.objects.filter(user=user).delete()
         audit_log(request, AuditCategory.USER,
                   f'Kullanıcı deaktif edildi: {user.username}', target=user)
@@ -581,12 +663,10 @@ def user_deactivate_view(request, pk):
 
 # Toplu kullanıcı işlemi — Sadece ADMIN
 @login_required
+@require_POST
 def user_bulk_action_view(request):
     if request.user.role != Role.ADMIN:
         return HttpResponseForbidden('Bu işlem için yetkiniz bulunmamaktadır.')
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
-
     action = request.POST.get('action', '')
     user_ids = request.POST.getlist('user_ids')
     if not user_ids:
@@ -603,7 +683,6 @@ def user_bulk_action_view(request):
     elif action == 'deactivate':
         count = qs.filter(is_active=True).update(is_active=False)
         # Pasifleştirilen hesapların API token'ını da iptal et
-        from rest_framework.authtoken.models import Token
         Token.objects.filter(user__in=qs).delete()
         audit_log(request, AuditCategory.USER, f'Toplu deaktif: {count} kullanıcı pasifleştirildi')
         messages.success(request, f'{count} kullanıcı deaktif edildi.')
@@ -615,12 +694,10 @@ def user_bulk_action_view(request):
 
 # Kullanıcı onaylama — Sadece ADMIN (pasif hesabı aktif yapar)
 @login_required
+@require_POST
 def user_approve_view(request, pk):
     if request.user.role != Role.ADMIN:
         return HttpResponseForbidden('Bu işlem için yetkiniz bulunmamaktadır.')
-
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
 
     user = get_object_or_404(User, pk=pk)
     user.is_active = True

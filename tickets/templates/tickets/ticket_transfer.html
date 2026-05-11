@@ -83,18 +83,18 @@
 
     deptSelect.addEventListener('change', function () {
         const deptId = this.value;
-        catSelect.innerHTML = '<option value="">Yükleniyor...</option>';
+        catSelect.innerHTML = '<option value="">{% trans "Yükleniyor..." %}</option>';
         catSelect.disabled = true;
 
         if (!deptId) {
-            catSelect.innerHTML = '<option value="">Önce departman seçin...</option>';
+            catSelect.innerHTML = '<option value="">{% trans "Önce departman seçin..." %}</option>';
             return;
         }
 
         fetch(`/departments/${deptId}/categories/`)
             .then(res => res.json())
             .then(categories => {
-                catSelect.innerHTML = '<option value="">Kategori seçin...</option>';
+                catSelect.innerHTML = '<option value="">{% trans "Kategori seçin..." %}</option>';
                 categories.forEach(cat => {
                     const opt = document.createElement('option');
                     opt.value = cat.id;
@@ -103,11 +103,11 @@
                 });
                 catSelect.disabled = categories.length === 0;
                 if (categories.length === 0) {
-                    catSelect.innerHTML = '<option value="">Bu departmanda kategori yok</option>';
+                    catSelect.innerHTML = '<option value="">{% trans "Bu departmanda kategori yok" %}</option>';
                 }
             })
             .catch(() => {
-                catSelect.innerHTML = '<option value="">Kategoriler yüklenemedi</option>';
+                catSelect.innerHTML = '<option value="">{% trans "Kategoriler yüklenemedi" %}</option>';
             });
     });
 </script>

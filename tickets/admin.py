@@ -110,11 +110,15 @@ class TicketAdmin(admin.ModelAdmin):
         count = queryset.update(status=Status.IN_PROGRESS)
         self.message_user(request, f'{count} bilet "İşlemde" durumuna getirildi.')
 
-    # Seçili biletleri Kapalı durumuna getir
+    # Seçili biletleri Kapalı durumuna getir (admin override: onay olmadan zorunlu kapanış)
     @admin.action(description='Seçili biletleri "Kapalı" durumuna getir')
     def mark_closed(self, request, queryset):
         from django.utils import timezone
-        count = queryset.update(status=Status.CLOSED, closed_at=timezone.now())
+        count = queryset.update(
+            status=Status.CLOSED,
+            closed_at=timezone.now(),
+            resolution_confirmed=True,
+        )
         self.message_user(request, f'{count} bilet kapatıldı.')
 
     # Seçili biletlerin atamasını sıfırla

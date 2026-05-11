@@ -20,6 +20,17 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body py-3">
         <form method="get" class="row g-2 align-items-end">
+            <!-- Arama -->
+            <div class="col-md-12">
+                <label for="filter_q" class="form-label small text-muted mb-1">{% trans "Ara" %}</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="search" name="q" id="filter_q" class="form-control"
+                           value="{{ current_q }}"
+                           placeholder="{% trans 'Kullanıcı adı, ad, soyad veya e-posta...' %}">
+                </div>
+            </div>
+
             <!-- Rol -->
             <div class="col-md-3">
                 <label for="filter_role" class="form-label small text-muted mb-1">{% trans "Rol" %}</label>
@@ -35,7 +46,7 @@
             <div class="col-md-3">
                 <label for="filter_department" class="form-label small text-muted mb-1">{% trans "Departman" %}</label>
                 <select name="department" id="filter_department" class="form-select form-select-sm">
-                    <option value="">Tümü</option>
+                    <option value="">{% trans "Tümü" %}</option>
                     <option value="none" {% if current_department == 'none' %}selected{% endif %}>{% trans "— Atanmamış —" %}</option>
                     {% for dept in departments %}
                         <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
@@ -47,7 +58,7 @@
             <div class="col-md-3">
                 <label for="filter_status" class="form-label small text-muted mb-1">{% trans "Durum" %}</label>
                 <select name="status" id="filter_status" class="form-select form-select-sm">
-                    <option value="">Tümü</option>
+                    <option value="">{% trans "Tümü" %}</option>
                     <option value="active" {% if current_status == 'active' %}selected{% endif %}>{% trans "Aktif" %}</option>
                     <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>{% trans "Pasif (onay bekliyor / deaktif)" %}</option>
                 </select>
@@ -63,8 +74,6 @@
                     <option value="-name" {% if current_sort == '-name' %}selected{% endif %}>{% trans "Ad (Z-A)" %}</option>
                     <option value="role" {% if current_sort == 'role' %}selected{% endif %}>{% trans "Rol" %}</option>
                     <option value="department" {% if current_sort == 'department' %}selected{% endif %}>{% trans "Departman" %}</option>
-                    <option value="-date_joined" {% if current_sort == '-date_joined' %}selected{% endif %}>{% trans "Kayıt (En Yeni)" %}</option>
-                    <option value="date_joined" {% if current_sort == 'date_joined' %}selected{% endif %}>{% trans "Kayıt (En Eski)" %}</option>
                 </select>
             </div>
 
@@ -114,11 +123,11 @@
                     </th>
                     <th>{% trans "Kullanıcı Adı" %}</th>
                     <th>{% trans "Ad Soyad" %}</th>
-                    <th>{% trans "Telefon" %}</th>
                     <th>{% trans "Rol" %}</th>
                     <th>{% trans "Departman" %}</th>
+                    <th>{% trans "E-posta" %}</th>
+                    <th>{% trans "Telefon" %}</th>
                     <th>{% trans "Durum" %}</th>
-                    <th>{% trans "Kayıt Tarihi" %}</th>
                     <th>{% trans "İşlem" %}</th>
                 </tr>
             </thead>
@@ -136,13 +145,6 @@
                             </a>
                         </td>
                         <td>{{ u.get_full_name|default:"—" }}</td>
-                        <td>
-                            {% if u.phone %}
-                                {{ u.phone }}
-                            {% else %}
-                                <span class="text-muted">—</span>
-                            {% endif %}
-                        </td>
                         <td>
                             {% if u.role == 'ADMIN' %}
                                 <span class="badge bg-danger">{{ u.get_role_display }}</span>
@@ -162,13 +164,26 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if u.email %}
+                                {{ u.email }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.phone %}
+                                {{ u.phone }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             {% if u.is_active %}
                                 <span class="badge bg-success">{% trans "Aktif" %}</span>
                             {% else %}
                                 <span class="badge bg-secondary">{% trans "Pasif" %}</span>
                             {% endif %}
                         </td>
-                        <td class="text-muted">{{ u.date_joined|date:"d.m.Y" }}</td>
                         <td>
                             <div class="d-flex gap-1">
                                 {% if not u.is_active %}
@@ -196,19 +211,19 @@
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ current_q }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-left"></i>
                         </a>
                     </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&q={{ current_q }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">{{ num }}</a>
                     </li>
                 {% endfor %}
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ current_q }}&role={{ current_role }}&department={{ current_department }}&status={{ current_status }}&sort={{ current_sort }}">
                             <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>

@@ -1,163 +1,982 @@
-/* Genel sayfa düzeni */
+/* ─────────────────────────────────────────────────────────────────
+   ESMS Tasarım Sistemi — Clean Minimal
+   v1.2 · 7 Mayıs 2026
+   Akzan: blue-600 (#2563eb)
+   Tipografi: Inter (base.html'de yüklenir)
+───────────────────────────────────────────────────────────────── */
+
+/* ── 1. Tasarım belirteçleri (light mode) ─────────────────────── */
+:root {
+    /* Akzan renk skalası */
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-active: #1e40af;
+    --accent-soft: #eff6ff;
+    --accent-ring: rgba(37, 99, 235, 0.25);
+
+    /* Yüzeyler */
+    --surface-0: #ffffff;
+    --surface-1: #fafafa;
+    --surface-2: #f4f4f5;
+    --surface-3: #e4e4e7;
+
+    /* Hairline */
+    --border: #e4e4e7;
+    --border-strong: #d4d4d8;
+
+    /* Metin */
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --text-muted: #71717a;
+
+    /* Durum (subtle dolgular için baz) */
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --info: #0891b2;
+
+    /* Layered shadows */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+
+    /* Köşe yuvarlaklığı */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* Geçiş süresi */
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── 2. Dark mode override ────────────────────────────────────── */
+/* Çok siyah değil — siyah-gri arası tonlar, yüksek kontrastlı metin */
+[data-bs-theme="dark"] {
+    --surface-0: #23252b;       /* kartlar — sayfa zemininden hafif aydınlık */
+    --surface-1: #1a1b20;       /* sayfa zemini — siyah-gri arası */
+    --surface-2: #2c2e35;       /* hover, input, başlık zemini */
+    --surface-3: #3a3c44;       /* daha güçlü vurgu */
+
+    --border: #353740;
+    --border-strong: #45474f;
+
+    --text-primary: #f5f5f7;    /* belirgin parlak beyaz */
+    --text-secondary: #d1d5db;  /* yüksek kontrastlı ikincil */
+    --text-muted: #9ca3af;      /* okunabilir muted */
+
+    --accent-soft: rgba(37, 99, 235, 0.18);
+    --accent-ring: rgba(37, 99, 235, 0.4);
+
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.45);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.55);
+}
+
+/* ── 3. Bootstrap CSS değişkenleri override ───────────────────── */
+:root {
+    --bs-body-bg: var(--surface-1);
+    --bs-body-color: var(--text-primary);
+    --bs-border-color: var(--border);
+    --bs-secondary-color: var(--text-secondary);
+    --bs-tertiary-bg: var(--surface-2);
+    --bs-primary: var(--accent);
+    --bs-primary-rgb: 37, 99, 235;
+    --bs-link-color: var(--accent);
+    --bs-link-hover-color: var(--accent-hover);
+    --bs-primary-bg-subtle: var(--accent-soft);
+}
+
+[data-bs-theme="dark"] {
+    --bs-body-bg: var(--surface-1);
+    --bs-body-color: var(--text-primary);
+    --bs-border-color: var(--border);
+    --bs-tertiary-bg: var(--surface-2);
+    --bs-primary-bg-subtle: var(--accent-soft);
+}
+
+/* ── 4. Genel tipografi ───────────────────────────────────────── */
 body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    font-size: 0.925rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-feature-settings: 'cv11', 'ss01';
+    color: var(--text-primary);
+    background-color: var(--surface-1);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 main {
     flex: 1;
 }
 
-/* Navbar */
-.navbar-brand {
-    letter-spacing: 0.5px;
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
 }
 
-/* Navbar bağlantıları — kalın ve büyük harf */
+h1, .h1 { font-size: 1.5rem; }
+h2, .h2 { font-size: 1.25rem; }
+h3, .h3 { font-size: 1.125rem; }
+h4, .h4 { font-size: 1rem; }
+h5, .h5 { font-size: 0.95rem; }
+h6, .h6 { font-size: 0.85rem; font-weight: 500; }
+
+/* Sayfa başlıkları — .h4 class'ı olan h1'ler daha büyük görünsün */
+main h1 {
+    font-size: 1.625rem !important;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+small {
+    font-size: 0.8125rem;
+}
+
+/* ── 5. Navbar ────────────────────────────────────────────────── */
+/* Her iki modda da dark mode sayfa zemini rengi: #1a1b20 */
+.navbar {
+    background-color: #1a1b20 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05);
+    padding: 0.625rem 0;
+}
+
+[data-bs-theme="dark"] .navbar {
+    background-color: #1a1b20 !important;
+    border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+.navbar-brand {
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    font-size: 1.1rem;
+    color: #ffffff !important;
+    text-transform: uppercase;
+}
+
+/* Navbar — UPPERCASE + KALIN (kullanıcı tercihi) */
 .navbar .navbar-nav .nav-link,
 .navbar .navbar-nav .nav-link span,
 .navbar .navbar-nav .nav-item button.nav-link {
     font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px !important;
+    font-size: 0.8125rem;
+    padding: 0.45rem 0.85rem !important;
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition), color var(--transition);
+    color: rgba(255, 255, 255, 0.92) !important;     /* yüksek kontrast */
 }
 
-/* Tablo */
-.table th {
-    font-weight: 600;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+.navbar .navbar-nav .nav-link:hover,
+.navbar .navbar-nav .nav-link:focus {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Kartlar */
-.card {
-    padding: 24px;
-    min-height: 150px;
-    box-sizing: border-box;
-    transition: box-shadow 0.15s ease, border-color 0.15s;
-    border: 3px solid rgba(0, 0, 0, 0.15) !important;
-    border-radius: 12px;
+/* Aktif/seçili sayfa için sade alt çizgi */
+.navbar .navbar-nav .nav-link.active {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
-.card:hover {
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08) !important;
+/* Bildirim/dil/tema toggle alanı */
+.navbar .nav-link i.bi {
+    font-size: 1.05rem;
+    line-height: 1;
 }
 
-/* Badge */
-.badge {
-    font-weight: 500;
-    font-size: 0.78rem;
-}
-
-/* Boş durum ikonu */
-.display-4 {
-    opacity: 0.3;
-}
-
-/* Dark Mode Geçişleri */
-
-/* Dark mode toggle butonu */
 #theme-toggle {
     border: none;
     background: transparent;
     cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    font-size: 1.1rem;
+    padding: 0.45rem 0.7rem;
     line-height: 1;
+    color: rgba(255, 255, 255, 0.92);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition), color var(--transition);
+    font-weight: 700;
 }
 
-/* Kart çerçevesi + gölge — açık modda belirgin gölge, karanlık modda beyaz çerçeve */
+#theme-toggle:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Navbar toggler (mobile) */
+.navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.25);
+}
+.navbar-toggler:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.15);
+}
+
+/* Dil dropdown — navbar içindeki özel dropdown */
+.navbar .lang-dropdown .dropdown-toggle {
+    font-size: 0.8125rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.navbar .lang-dropdown .dropdown-toggle::after {
+    display: none;      /* Bootstrap ok işaretini gizle */
+}
+
+.lang-dropdown .dropdown-menu {
+    min-width: 140px;
+    margin-top: 0.375rem;
+    background-color: #23252b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.lang-dropdown .dropdown-item {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.875rem;
+    padding: 0.5rem 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.lang-dropdown .dropdown-item:hover,
+.lang-dropdown .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.lang-dropdown .dropdown-item.active {
+    background-color: rgba(37, 99, 235, 0.35);
+    color: #93c5fd;
+    font-weight: 600;
+}
+
+.lang-dropdown .dropdown-item form {
+    display: contents;   /* form sarmalayıcısını şeffaf tut */
+}
+
+.lang-dropdown .dropdown-item form button {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    padding: 0;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ── Profil Dropdown ─────────────────────────────────────────── */
+.profile-dropdown .dropdown-menu {
+    min-width: 200px;
+    margin-top: 0.375rem;
+    background-color: #23252b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.25rem;
+}
+
+.profile-dropdown .dropdown-divider {
+    border-top-color: rgba(255, 255, 255, 0.1);
+    margin: 0.25rem 0;
+}
+
+.profile-dropdown .dropdown-item {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.875rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    transition: background-color var(--transition), color var(--transition);
+}
+
+.profile-dropdown .dropdown-item:hover,
+.profile-dropdown .dropdown-item:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+/* Aktif tema butonu — seçili olan vurgulansın */
+.profile-dropdown .theme-option.active {
+    background-color: rgba(37, 99, 235, 0.35);
+    color: #93c5fd;
+    font-weight: 600;
+}
+
+.profile-dropdown .language-option.active {
+    background-color: rgba(37, 99, 235, 0.35);
+    color: #93c5fd;
+    font-weight: 600;
+}
+
+.profile-dropdown .theme-option {
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+/* Çıkış — ince tehlike vurgusu */
+.profile-dropdown .text-danger-item {
+    color: rgba(248, 113, 113, 0.9) !important;
+}
+
+.profile-dropdown .text-danger-item:hover {
+    background-color: rgba(220, 38, 38, 0.15) !important;
+    color: #f87171 !important;
+}
+
+/* Dropdown toggle ok işareti gizle */
+.profile-dropdown .dropdown-toggle::after {
+    display: none;
+}
+
+/* Navbar'da kullanıcı adı */
+.navbar-username {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: rgba(255, 255, 255, 0.92);
+    text-transform: none;        /* navbar'ın global uppercase'ini ezer */
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dropdown section label (Dil, Tema başlıkları) */
+.dropdown-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255, 255, 255, 0.35);
+    padding: 0.35rem 0.875rem 0.15rem;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Profil sayfasındaki tema butonları — active state */
+.btn.theme-option.active {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+
+.btn.language-option.active {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+
+/* ── 6. Kartlar ──────────────────────────────────────────────── */
 .card {
-    border: 1px solid rgba(0, 0, 0, 0.15) !important;
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.12) !important;
+    background-color: var(--surface-0);
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-xs) !important;
+    transition: box-shadow var(--transition), border-color var(--transition);
+    padding: 0;
+    min-height: auto;
 }
+
 .card:hover {
-    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.18) !important;
-}
-.shadow-sm {
-    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1) !important;
-}
-[data-bs-theme="dark"] .card {
-    border: 1px solid rgba(255, 255, 255, 0.85) !important;
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.5) !important;
-}
-[data-bs-theme="dark"] .card:hover {
-    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.65) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
-/* Dark modda shadow-sm ayarı */
-[data-bs-theme="dark"] .shadow-sm {
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3) !important;
+.card-body {
+    padding: 1.25rem;
 }
 
-/* Dark modda form elemanları */
+.card-body.p-2 { padding: 0.5rem !important; }
+.card-body.p-3 { padding: 1rem !important; }
+.card-body.p-4 { padding: 1.5rem !important; }
+.card-body.py-3 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
+
+.card-header {
+    background-color: var(--surface-0);
+    border-bottom: 1px solid var(--border);
+    padding: 0.875rem 1.25rem;
+    font-weight: 500;
+}
+
+/* shadow utility'leri sistemle hizala */
+.shadow-xs { box-shadow: var(--shadow-xs) !important; }
+.shadow-sm { box-shadow: var(--shadow-sm) !important; }
+.shadow { box-shadow: var(--shadow-md) !important; }
+.shadow-lg { box-shadow: var(--shadow-lg) !important; }
+
+/* ── 7. Butonlar ─────────────────────────────────────────────── */
+.btn {
+    font-weight: 500;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition), border-color var(--transition),
+                color var(--transition), box-shadow var(--transition), transform var(--transition);
+    letter-spacing: 0;
+}
+
+.btn-sm {
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.625rem;
+}
+
+.btn-lg {
+    font-size: 0.95rem;
+    padding: 0.625rem 1.125rem;
+}
+
+.btn:focus-visible {
+    box-shadow: 0 0 0 3px var(--accent-ring);
+    outline: none;
+}
+
+/* Birincil eylem — accent (mavi) */
+.btn-primary, .btn-dark {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+}
+
+.btn-primary:hover, .btn-dark:hover,
+.btn-primary:focus, .btn-dark:focus {
+    background-color: var(--accent-hover) !important;
+    border-color: var(--accent-hover) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:active, .btn-dark:active {
+    background-color: var(--accent-active) !important;
+    border-color: var(--accent-active) !important;
+    transform: translateY(0);
+}
+
+/* İkincil — outline */
+.btn-outline-dark, .btn-outline-secondary {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+    background-color: transparent;
+}
+
+.btn-outline-dark:hover, .btn-outline-secondary:hover {
+    background-color: var(--surface-2);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+/* Dark mode buton ayarları */
+[data-bs-theme="dark"] .btn-outline-dark,
+[data-bs-theme="dark"] .btn-outline-secondary {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+}
+
+[data-bs-theme="dark"] .btn-outline-dark:hover,
+[data-bs-theme="dark"] .btn-outline-secondary:hover {
+    background-color: var(--surface-2);
+    color: var(--text-primary);
+}
+
+/* Outline danger */
+.btn-outline-danger {
+    color: var(--danger);
+    border-color: rgba(220, 38, 38, 0.4);
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--danger);
+    border-color: var(--danger);
+    color: #ffffff;
+}
+
+/* Durum butonları (success/warning/info) — domain anlamı korunur */
+.btn-success {
+    background-color: var(--success);
+    border-color: var(--success);
+    color: #ffffff;
+}
+.btn-success:hover, .btn-success:focus {
+    background-color: #15803d !important;
+    border-color: #15803d !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-warning {
+    background-color: var(--warning);
+    border-color: var(--warning);
+    color: #ffffff;
+}
+.btn-warning:hover, .btn-warning:focus {
+    background-color: #b45309 !important;
+    border-color: #b45309 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-outline-warning {
+    color: var(--warning);
+    border-color: rgba(217, 119, 6, 0.4);
+}
+.btn-outline-warning:hover {
+    background-color: var(--warning);
+    border-color: var(--warning);
+    color: #ffffff;
+}
+
+.btn-outline-success {
+    color: var(--success);
+    border-color: rgba(22, 163, 74, 0.4);
+}
+.btn-outline-success:hover {
+    background-color: var(--success);
+    border-color: var(--success);
+    color: #ffffff;
+}
+
+.btn-outline-primary {
+    color: var(--accent);
+    border-color: rgba(37, 99, 235, 0.4);
+}
+.btn-outline-primary:hover {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+}
+
+/* Buton içi link butonu */
+.btn-link {
+    color: var(--accent);
+    text-decoration: none;
+}
+.btn-link:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+/* ── 8. Form elemanları ──────────────────────────────────────── */
+.form-control, .form-select {
+    background-color: var(--surface-0);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-control-sm, .form-select-sm {
+    padding: 0.4rem 0.625rem;
+    font-size: 0.8125rem;
+    border-radius: var(--radius-sm);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-label {
+    font-weight: 500;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.375rem;
+}
+
 [data-bs-theme="dark"] .form-control,
 [data-bs-theme="dark"] .form-select {
-    border-color: #495057;
+    background-color: var(--surface-2);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
 }
 
-/* Dark modda border badge */
-[data-bs-theme="dark"] .badge.border {
-    border-color: #6c757d !important;
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: var(--surface-2);
+    border-color: var(--accent);
 }
 
-/* Dark modda link renkleri */
+.input-group-text {
+    background-color: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+}
+
+/* Form check / switch */
+.form-check-input:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 3px var(--accent-ring);
+    border-color: var(--accent);
+}
+
+/* ── 9. Tablolar ─────────────────────────────────────────────── */
+.table {
+    --bs-table-bg: var(--surface-0);
+    --bs-table-color: var(--text-primary);
+    --bs-table-border-color: var(--border);
+    --bs-table-hover-bg: var(--surface-1);
+    --bs-table-hover-color: var(--text-primary);
+    margin-bottom: 0;
+    color: var(--text-primary);
+}
+
+.table > :not(caption) > * > * {
+    padding: 0.75rem 0.875rem;
+    border-bottom-color: var(--border);
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-primary);
+    background-color: var(--surface-2);
+    border-bottom: 1px solid var(--border-strong);
+}
+
+/* table-dark başlık ezildi → soft surface */
+.table-dark, .table > thead.table-dark {
+    --bs-table-bg: var(--surface-2);
+    --bs-table-color: var(--text-secondary);
+    --bs-table-border-color: var(--border);
+}
+
+.table-dark th, .table > thead.table-dark th {
+    background-color: var(--surface-2) !important;
+    color: var(--text-secondary) !important;
+    border-bottom-color: var(--border) !important;
+}
+
+.table-light, .table > thead.table-light {
+    --bs-table-bg: var(--surface-1);
+    --bs-table-color: var(--text-secondary);
+}
+
+.table-hover > tbody > tr:hover > * {
+    background-color: var(--surface-1);
+}
+
+[data-bs-theme="dark"] .table-hover > tbody > tr:hover > * {
+    background-color: var(--surface-2);
+}
+
+/* ── 10. Badge'ler ───────────────────────────────────────────── */
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0;
+    padding: 0.3em 0.6em;
+    border-radius: var(--radius-sm);
+}
+
+.rounded-pill.badge {
+    border-radius: var(--radius-full);
+}
+
+/* Subtle (yumuşak dolgu) badge stilleri */
+.badge.bg-primary {
+    background-color: var(--accent) !important;
+}
+
+.badge.bg-success {
+    background-color: var(--success) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--warning) !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--danger) !important;
+}
+
+.badge.bg-secondary {
+    background-color: var(--surface-3) !important;
+    color: var(--text-secondary) !important;
+}
+
+.badge.bg-info {
+    background-color: var(--info) !important;
+    color: #ffffff !important;
+}
+
+.badge.bg-light {
+    background-color: var(--surface-2) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border);
+}
+
+[data-bs-theme="dark"] .badge.bg-light {
+    background-color: var(--surface-2) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-strong);
+}
+
+/* Subtle variantlar (Bootstrap 5.3) */
+.badge.bg-success-subtle {
+    background-color: rgb(22 163 74 / 0.12) !important;
+    color: var(--success) !important;
+}
+.badge.bg-danger-subtle {
+    background-color: rgb(220 38 38 / 0.12) !important;
+    color: var(--danger) !important;
+}
+.badge.bg-warning-subtle {
+    background-color: rgb(217 119 6 / 0.12) !important;
+    color: var(--warning) !important;
+}
+.badge.bg-primary-subtle {
+    background-color: var(--accent-soft) !important;
+    color: var(--accent) !important;
+}
+
+[data-bs-theme="dark"] .badge.bg-success-subtle {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #4ade80 !important;
+}
+[data-bs-theme="dark"] .badge.bg-danger-subtle {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #f87171 !important;
+}
+[data-bs-theme="dark"] .badge.bg-warning-subtle {
+    background-color: rgba(245, 158, 11, 0.2) !important;
+    color: #fbbf24 !important;
+}
+
+/* `bg-warning text-dark` özel — Bootstrap default'unda kontrast OK,
+   dark modda zemin yeterince parlak olduğu için text-dark uygundur */
+.badge.bg-warning.text-dark,
+.btn.bg-warning.text-dark {
+    color: #1a1a1a !important;
+}
+
+/* ── 11. Alerts ──────────────────────────────────────────────── */
+.alert {
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+}
+
+.alert-success {
+    background-color: rgb(22 163 74 / 0.08);
+    color: var(--success);
+    border-color: rgb(22 163 74 / 0.2);
+}
+
+.alert-warning {
+    background-color: rgb(217 119 6 / 0.08);
+    color: var(--warning);
+    border-color: rgb(217 119 6 / 0.2);
+}
+
+.alert-danger, .alert-error {
+    background-color: rgb(220 38 38 / 0.08);
+    color: var(--danger);
+    border-color: rgb(220 38 38 / 0.2);
+}
+
+.alert-info {
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    border-color: rgb(37 99 235 / 0.2);
+}
+
+/* ── 12. Linkler ─────────────────────────────────────────────── */
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--transition);
+}
+
+a:hover {
+    color: var(--accent-hover);
+    text-decoration: none;
+}
+
+a.text-decoration-none {
+    color: inherit;
+}
+
+a.text-decoration-none:hover {
+    color: var(--accent);
+}
+
+/* Listede kart-iç linkleri (örn. ticket subject) */
+a.text-body, a.text-dark {
+    color: var(--text-primary) !important;
+}
+
+a.text-body:hover {
+    color: var(--accent) !important;
+}
+
 [data-bs-theme="dark"] a.text-dark {
-    color: #dee2e6 !important;
+    color: var(--text-primary) !important;
 }
 
-/* Dark modda btn-outline-dark görünür olsun (varsayılanda koyu metin koyu zeminde kayboluyor) */
-[data-bs-theme="dark"] .btn-outline-dark {
-    color: #f8f9fa !important;
-    border-color: #f8f9fa !important;
-}
-[data-bs-theme="dark"] .btn-outline-dark:hover,
-[data-bs-theme="dark"] .btn-outline-dark:focus,
-[data-bs-theme="dark"] .btn-outline-dark:active {
-    color: #212529 !important;
-    background-color: #f8f9fa !important;
-    border-color: #f8f9fa !important;
-}
-[data-bs-theme="dark"] .btn-dark {
-    color: #212529 !important;
-    background-color: #f8f9fa !important;
-    border-color: #f8f9fa !important;
-}
-[data-bs-theme="dark"] .btn-dark:hover,
-[data-bs-theme="dark"] .btn-dark:focus {
-    background-color: #e9ecef !important;
-    border-color: #e9ecef !important;
+/* ── 13. Dropdown ────────────────────────────────────────────── */
+.dropdown-menu {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 0.375rem;
+    background-color: var(--surface-0);
 }
 
-/* Bildirim listesi — açık ve karanlık modda okunabilir */
+.dropdown-item {
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.625rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    transition: background-color var(--transition);
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+    background-color: var(--surface-2);
+    color: var(--text-primary);
+}
+
+.dropdown-item.active {
+    background-color: var(--accent-soft);
+    color: var(--accent);
+}
+
+.dropdown-divider {
+    border-top: 1px solid var(--border);
+    margin: 0.25rem 0;
+}
+
+/* ── 14. Modal ───────────────────────────────────────────────── */
+.modal-content {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    background-color: var(--surface-0);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+}
+
+.modal-body { padding: 1.25rem; }
+.modal-footer {
+    border-top: 1px solid var(--border);
+    padding: 0.875rem 1.25rem;
+}
+
+.modal-backdrop.show {
+    opacity: 0.6;
+    backdrop-filter: blur(2px);
+}
+
+/* ── 15. Pagination ──────────────────────────────────────────── */
+.pagination .page-link {
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background-color: var(--surface-0);
+    border-radius: var(--radius-md);
+    margin: 0 2px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    transition: background-color var(--transition), color var(--transition);
+}
+
+.pagination .page-link:hover {
+    background-color: var(--surface-2);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+}
+
+/* ── 16. Progress bar ────────────────────────────────────────── */
+.progress {
+    background-color: var(--surface-2);
+    border-radius: var(--radius-full);
+    height: 6px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background-color: var(--accent);
+    transition: width 0.4s ease;
+}
+
+.progress-bar.bg-success { background-color: var(--success) !important; }
+.progress-bar.bg-warning { background-color: var(--warning) !important; }
+.progress-bar.bg-danger { background-color: var(--danger) !important; }
+
+/* ── 17. Bildirim listesi (özelleştirilmiş) ──────────────────── */
 .notification-item {
-    background-color: var(--bs-body-bg);
-    color: var(--bs-body-color);
-    border-color: var(--bs-border-color);
+    background-color: var(--surface-0);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition);
 }
+
 .notification-unread {
-    background-color: var(--bs-primary-bg-subtle);
-    color: var(--bs-body-color);
+    background-color: var(--accent-soft);
+    border-color: rgba(37, 99, 235, 0.2);
 }
+
 .notification-read {
-    background-color: var(--bs-tertiary-bg);
-    color: var(--bs-body-color);
+    background-color: var(--surface-1);
 }
+
 .notification-read-text {
-    color: var(--bs-secondary-color);
+    color: var(--text-muted);
 }
+
 [data-bs-theme="dark"] .notification-unread {
-    background-color: rgba(13, 110, 253, 0.18);
+    background-color: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.3);
 }
+
 [data-bs-theme="dark"] .notification-read {
-    background-color: var(--bs-tertiary-bg);
+    background-color: var(--surface-2);
 }
 
-/* Hata Sayfaları */
-
+/* ── 18. Hata sayfaları ──────────────────────────────────────── */
 .error-page {
     text-align: center;
     padding: 4rem 1rem;
@@ -167,17 +986,209 @@ main {
     font-size: 6rem;
     font-weight: 800;
     line-height: 1;
-    color: #212529;
-    opacity: 0.15;
-}
-
-[data-bs-theme="dark"] .error-page .error-code {
-    color: #f8f9fa;
-    opacity: 0.15;
+    color: var(--text-primary);
+    opacity: 0.1;
+    letter-spacing: -0.04em;
 }
 
 .error-page .error-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
-    opacity: 0.5;
+    opacity: 0.4;
+    color: var(--text-secondary);
+}
+
+/* ── 19. Yardımcı sınıflar / mikro ayarlar ───────────────────── */
+.display-4 { opacity: 0.25; }
+
+/* Body arka planı dark mode'da */
+[data-bs-theme="dark"] body {
+    background-color: var(--surface-1);
+    color: var(--text-primary);
+}
+
+/* Dark mode — global metin kontrast iyileştirmeleri */
+[data-bs-theme="dark"] {
+    color-scheme: dark;
+}
+
+[data-bs-theme="dark"] h1,
+[data-bs-theme="dark"] h2,
+[data-bs-theme="dark"] h3,
+[data-bs-theme="dark"] h4,
+[data-bs-theme="dark"] h5,
+[data-bs-theme="dark"] h6 {
+    color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] p,
+[data-bs-theme="dark"] span,
+[data-bs-theme="dark"] li,
+[data-bs-theme="dark"] td,
+[data-bs-theme="dark"] label {
+    color: inherit;
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Card içi başlıklar ve değerler */
+[data-bs-theme="dark"] .card,
+[data-bs-theme="dark"] .card-body,
+[data-bs-theme="dark"] .card-header {
+    color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: var(--surface-2);
+    border-bottom-color: var(--border);
+}
+
+/* Bootstrap text-* sınıfları dark modda canlı kalsın */
+[data-bs-theme="dark"] .text-primary { color: #60a5fa !important; }
+[data-bs-theme="dark"] .text-success { color: #4ade80 !important; }
+[data-bs-theme="dark"] .text-danger { color: #f87171 !important; }
+[data-bs-theme="dark"] .text-warning { color: #fbbf24 !important; }
+[data-bs-theme="dark"] .text-info { color: #22d3ee !important; }
+[data-bs-theme="dark"] .text-secondary { color: var(--text-secondary) !important; }
+[data-bs-theme="dark"] .text-body { color: var(--text-primary) !important; }
+[data-bs-theme="dark"] .text-warning-emphasis { color: #fbbf24 !important; }
+[data-bs-theme="dark"] .text-secondary-emphasis { color: var(--text-secondary) !important; }
+
+/* bg-light, bg-body-secondary gibi açık zeminler dark modda surface-2 olsun */
+[data-bs-theme="dark"] .bg-light,
+[data-bs-theme="dark"] .bg-body-secondary,
+[data-bs-theme="dark"] .bg-body-tertiary {
+    background-color: var(--surface-2) !important;
+    color: var(--text-primary);
+}
+
+/* "subtle" arka planlar */
+[data-bs-theme="dark"] .bg-success-subtle {
+    background-color: rgba(34, 197, 94, 0.18) !important;
+}
+[data-bs-theme="dark"] .bg-danger-subtle {
+    background-color: rgba(239, 68, 68, 0.18) !important;
+}
+[data-bs-theme="dark"] .bg-warning-subtle {
+    background-color: rgba(245, 158, 11, 0.18) !important;
+}
+[data-bs-theme="dark"] .bg-primary-subtle,
+[data-bs-theme="dark"] .bg-info-subtle {
+    background-color: var(--accent-soft) !important;
+}
+
+/* Bootstrap'in border-utility'leri dark modda hairline'a uy */
+[data-bs-theme="dark"] .border,
+[data-bs-theme="dark"] .border-top,
+[data-bs-theme="dark"] .border-bottom,
+[data-bs-theme="dark"] .border-start,
+[data-bs-theme="dark"] .border-end {
+    border-color: var(--border) !important;
+}
+
+/* List group — kartlarda kullanılan flush varyant */
+.list-group-flush > .list-group-item {
+    border-color: var(--border);
+    background-color: transparent;
+    padding: 0.625rem 0;
+}
+
+.list-group-item {
+    color: var(--text-primary);
+    background-color: var(--surface-0);
+    border-color: var(--border);
+    transition: background-color var(--transition);
+}
+
+.list-group-item-action:hover,
+.list-group-item-action:focus {
+    background-color: var(--surface-2);
+    color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .list-group-item-action:hover,
+[data-bs-theme="dark"] .list-group-item-action:focus {
+    background-color: var(--surface-2);
+    color: var(--text-primary);
+}
+
+/* Login/register sayfaları için (standalone, body.bg-light kullanır) */
+body.bg-light {
+    background-color: var(--surface-1) !important;
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Sayfa başlığı (h1) için tutarlı boşluk */
+h1.h4, h1.h3 {
+    margin-bottom: 0;
+}
+
+/* Footer — navbar ile aynı renk: #1a1b20 */
+footer.bg-dark {
+    background-color: #1a1b20 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+footer.bg-dark .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-bs-theme="dark"] footer.bg-dark {
+    background-color: #1a1b20 !important;
+    border-top-color: rgba(255, 255, 255, 0.07);
+}
+
+/* Focus ring genel — erişilebilirlik */
+*:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+button:focus-visible, .btn:focus-visible, a:focus-visible {
+    outline: none;
+}
+
+/* Smooth font için sayısal göstergeler */
+.fw-bold, .fw-semibold {
+    letter-spacing: -0.01em;
+}
+
+.display-6 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* ── 20. Kanban özelleştirmesi ──────────────────────────────── */
+.kanban-board .card-header {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.kanban-card {
+    background-color: var(--surface-0);
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-xs) !important;
+    transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+}
+
+.kanban-card:hover {
+    box-shadow: var(--shadow-sm) !important;
+    border-color: var(--border-strong) !important;
+}
+
+.kanban-column.drag-over {
+    background-color: var(--accent-soft);
+    outline: 2px dashed rgba(37, 99, 235, 0.4);
+    outline-offset: -4px;
+    border-radius: var(--radius-md);
+}
+
+[data-bs-theme="dark"] .kanban-column.drag-over {
+    background-color: var(--accent-soft);
 }

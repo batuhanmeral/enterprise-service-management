@@ -1,695 +1,763 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}Raporlar — Talep Yönetim Sistemi{% endblock %}
+{% block title %}{% trans "Raporlar" %} — {% trans "Talep Yönetim Sistemi" %}{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
     <h1 class="h4 mb-0">
-        <i class="bi bi-bar-chart-line me-2"></i>{% trans "Raporlar ve İstatistikler" %}
+        <i class="bi bi-bar-chart-line me-2"></i>{% trans "Raporlar ve Analitik" %}
     </h1>
-    <div class="d-flex flex-wrap gap-2 align-items-end">
-        <!-- Tarih aralığı filtresi -->
-        <form method="get" class="d-flex gap-2 align-items-end flex-wrap">
-            <div>
-                <label class="form-label mb-1 small text-muted">{% trans "Başlangıç" %}</label>
-                <input type="date" name="date_from" class="form-control form-control-sm"
-                       value="{{ date_from }}" style="width:145px;">
-            </div>
-            <div>
-                <label class="form-label mb-1 small text-muted">{% trans "Bitiş" %}</label>
-                <input type="date" name="date_to" class="form-control form-control-sm"
-                       value="{{ date_to }}" style="width:145px;">
-            </div>
-            <button type="submit" class="btn btn-sm btn-outline-dark">
-                <i class="bi bi-funnel me-1"></i>{% trans "Filtrele" %}
-            </button>
-            {% if date_from or date_to %}
-                <a href="{% url 'reports:dashboard' %}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-x"></i>
-                </a>
-            {% endif %}
-        </form>
-        <!-- Dışa aktar — tarih filtresini parametrelerle geçirir -->
-        <div class="dropdown">
-            <button class="btn btn-dark btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                <i class="bi bi-download me-1"></i>{% trans "Dışa Aktar" %}
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                    <a class="dropdown-item" href="{% url 'reports:export_csv' %}?date_from={{ date_from }}&date_to={{ date_to }}">
-                        <i class="bi bi-filetype-csv me-2"></i>CSV
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="{% url 'reports:export_excel' %}?date_from={{ date_from }}&date_to={{ date_to }}">
-                        <i class="bi bi-file-earmark-excel me-2"></i>Excel (.xlsx)
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="{% url 'reports:export_pdf' %}?date_from={{ date_from }}&date_to={{ date_to }}">
-                        <i class="bi bi-file-earmark-pdf me-2"></i>PDF
-                    </a>
-                </li>
-            </ul>
-        </div>
+    <div class="dropdown">
+        <button class="btn btn-dark btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-download me-1"></i>{% trans "Dışa Aktar" %}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'reports:export_csv' %}?{{ base_query }}">
+                <i class="bi bi-filetype-csv me-2"></i>CSV</a></li>
+            <li><a class="dropdown-item" href="{% url 'reports:export_excel' %}?{{ base_query }}">
+                <i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
+            <li><a class="dropdown-item" href="{% url 'reports:export_pdf' %}?{{ base_query }}">
+                <i class="bi bi-file-earmark-pdf me-2"></i>PDF</a></li>
+        </ul>
     </div>
 </div>
 
-{% if date_from or date_to %}
-<div class="alert alert-info py-2 mb-3 d-flex align-items-center gap-2">
-    <i class="bi bi-funnel-fill"></i>
-    <span>
-        {% trans "Filtre aktif:" %}
-        {% if date_from %}<strong>{{ date_from }}</strong>{% endif %}
-        {% if date_from and date_to %} — {% endif %}
-        {% if date_to %}<strong>{{ date_to }}</strong>{% endif %}
-    </span>
+{# ── Filtre çubuğu ─────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Başlangıç" %}</label>
+                {{ form.date_from }}
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Bitiş" %}</label>
+                {{ form.date_to }}
+            </div>
+            {% if is_admin %}
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Departman" %}</label>
+                {{ form.department }}
+            </div>
+            {% endif %}
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Açan" %}</label>
+                {{ form.sender }}
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Üstlenen" %}</label>
+                {{ form.assigned_to }}
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Kategori" %}</label>
+                {{ form.category }}
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Etiket" %}</label>
+                {{ form.tag }}
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Öncelik" %}</label>
+                {{ form.priority }}
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Durum" %}</label>
+                {{ form.status }}
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small text-muted mb-1">{% trans "Trend" %}</label>
+                {{ form.granularity }}
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-dark btn-sm flex-grow-1">
+                    <i class="bi bi-funnel me-1"></i>{% trans "Filtrele" %}
+                </button>
+                <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'Sıfırla' %}">
+                    <i class="bi bi-x"></i>
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
-{% endif %}
 
-<!-- Anomali tespiti — son 7 gün vs önceki 7 gün -->
+{# Anomali uyarıları #}
 {% if anomalies %}
-<div class="alert alert-warning d-flex align-items-start gap-2 mb-4">
+<div class="alert alert-warning d-flex align-items-start gap-2 mb-3">
     <i class="bi bi-exclamation-triangle-fill mt-1"></i>
     <div class="flex-grow-1">
-        <strong>{% trans "Trend Uyarısı:" %}</strong> {% trans "Son 7 günde aşağıdaki kategorilerde belirgin artış tespit edildi." %}
+        <strong>{% trans "Trend Uyarısı:" %}</strong>
+        {% trans "Son 7 günde aşağıdaki kategorilerde belirgin artış var." %}
         <ul class="mb-0 mt-1">
-            {% for a in anomalies %}
-                <li>
-                    <strong>{{ a.category }}</strong>:
-                    {% if a.is_new_trend %}
-                        son 7 günde <strong>{{ a.current }}</strong> bilet (önceki hafta hareket yoktu) — yeni trend.
-                    {% else %}
-                        son 7 günde <strong>{{ a.current }}</strong> bilet, önceki hafta {{ a.previous }} —
-                        <span class="text-danger fw-bold">%{{ a.change_pct|floatformat:0 }} artış</span>.
-                    {% endif %}
-                </li>
-            {% endfor %}
+        {% for a in anomalies %}
+            <li>
+                <strong>{{ a.category }}</strong>:
+                {% if a.is_new_trend %}
+                    {% blocktrans with c=a.current %}son 7 günde {{ c }} bilet (önceki hafta sıfır) — yeni trend.{% endblocktrans %}
+                {% else %}
+                    {% blocktrans with c=a.current p=a.previous %}son 7 günde {{ c }} bilet, önceki hafta {{ p }}{% endblocktrans %} —
+                    <span class="text-danger fw-bold">%{{ a.change_pct|floatformat:0 }} {% trans "artış" %}</span>.
+                {% endif %}
+            </li>
+        {% endfor %}
         </ul>
     </div>
 </div>
 {% endif %}
 
-<!-- Özet kartları -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
-            <div class="display-6 fw-bold">{{ total_tickets }}</div>
-            <small class="text-muted">{% trans "Toplam Bilet" %}</small>
+{# ── Sekmeler ──────────────────────────────────────────────────── #}
+<ul class="nav nav-tabs mb-3" id="reportTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">
+        <i class="bi bi-speedometer2 me-1"></i>{% trans "Genel" %}</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-personnel" type="button">
+        <i class="bi bi-people me-1"></i>{% trans "Personel" %}</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button">
+        <i class="bi bi-tags me-1"></i>{% trans "Kategori" %}</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-outgoing" type="button">
+        <i class="bi bi-box-arrow-up-right me-1"></i>{% trans "Giden Bilet" %}</button></li>
+    {% if is_admin %}
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-compare" type="button">
+        <i class="bi bi-bar-chart me-1"></i>{% trans "Departman Karşılaştırma" %}</button></li>
+    {% endif %}
+</ul>
+
+<div class="tab-content">
+
+{# ═══════════════ GENEL TAB ═══════════════ #}
+<div class="tab-pane fade show active" id="tab-overview">
+
+    {# KPI kartları (drill-down: tıklanınca filtrelenmiş bilet listesi) #}
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-2">
+            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center py-3 h-100">
+                    <div class="display-6 fw-bold">{{ total_tickets }}</div>
+                    <small class="text-muted">{% trans "Toplam" %}</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-2">
+            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&status=OPEN" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center py-3 h-100">
+                    <div class="display-6 fw-bold text-primary">{{ open_count }}</div>
+                    <small class="text-muted">{% trans "Açık" %}</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-2">
+            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&status=IN_PROGRESS" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center py-3 h-100">
+                    <div class="display-6 fw-bold text-warning">{{ in_progress_count }}</div>
+                    <small class="text-muted">{% trans "İşlemde" %}</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-2">
+            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&status=RESOLVED" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center py-3 h-100">
+                    <div class="display-6 fw-bold text-info">{{ resolved_count }}</div>
+                    <small class="text-muted">{% trans "Çözüldü" %}</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-2">
+            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&status=CLOSED" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center py-3 h-100">
+                    <div class="display-6 fw-bold text-secondary">{{ closed_count }}</div>
+                    <small class="text-muted">{% trans "Kapandı" %}</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-2">
+            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&status=ESCALATED" class="text-decoration-none">
+                <div class="card border-0 shadow-sm text-center py-3 h-100 {% if escalated_count %}border border-danger border-2{% endif %}">
+                    <div class="display-6 fw-bold text-danger">{{ escalated_count }}</div>
+                    <small class="text-muted">{% trans "Eskalasyon" %}</small>
+                </div>
+            </a>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
-            <div class="display-6 fw-bold text-primary">{{ open_count }}</div>
-            <small class="text-muted">{% trans "Açık" %}</small>
+
+    {# SLA / Reopen / CSAT kartları #}
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2"><i class="bi bi-stopwatch me-1"></i>{% trans "SLA Uyumu" %}</h6>
+                    {% if sla_compliance_pct != None %}
+                        <div class="display-6 fw-bold {% if sla_compliance_pct >= 90 %}text-success{% elif sla_compliance_pct >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                            %{{ sla_compliance_pct|floatformat:1 }}
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted mt-1">
+                            <span>{% blocktrans with n=sla_met %}{{ n }} biletinde uyumlu{% endblocktrans %}</span>
+                            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&sla_breach=1" class="text-danger">
+                                {% blocktrans with n=sla_breach %}{{ n }} ihlal{% endblocktrans %}
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">{% trans "Henüz kapanmış bilet yok" %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2"><i class="bi bi-arrow-counterclockwise me-1"></i>{% trans "Tekrar Açılma Oranı" %}</h6>
+                    {% if reopen_rate_pct != None %}
+                        <div class="display-6 fw-bold {% if reopen_rate_pct < 5 %}text-success{% elif reopen_rate_pct < 15 %}text-warning{% else %}text-danger{% endif %}">
+                            %{{ reopen_rate_pct|floatformat:1 }}
+                        </div>
+                        <div class="small text-muted mt-1">
+                            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&reopened=1" class="text-decoration-none">
+                                {% blocktrans with n=reopened_count %}{{ n }} bilet en az 1 kez reddedildi{% endblocktrans %}
+                                <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">{% trans "Veri yok" %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2"><i class="bi bi-star-fill text-warning me-1"></i>{% trans "Memnuniyet (CSAT)" %}</h6>
+                    {% if csat_average != None %}
+                        <div class="display-6 fw-bold">{{ csat_average }}<small class="fs-6 text-muted">/5</small></div>
+                        <div class="small text-muted mt-1">{% blocktrans with n=csat_count %}{{ n }} değerlendirme{% endblocktrans %}</div>
+                        <div style="position: relative; height: 60px;">
+                            <canvas id="csatChart"></canvas>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">{% trans "Henüz puan yok" %}</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
-            <div class="display-6 fw-bold text-warning">{{ in_progress_count }}</div>
-            <small class="text-muted">{% trans "İşlemde" %}</small>
+
+    {# Trend + Durum dağılımı #}
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">{% trans "Açılan vs Kapanan Bilet Trendi" %}
+                        <small class="text-muted">({{ granularity }})</small></h6>
+                    <div style="position: relative; height: 280px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
-            <div class="display-6 fw-bold text-secondary">{{ closed_count }}</div>
-            <small class="text-muted">{% trans "Kapalı" %}</small>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">{% trans "Durum Dağılımı" %}</h6>
+                    <div style="position: relative; height: 280px;">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Grafikler -->
-<div class="row g-3 mb-4">
-    <!-- Aylık trend -->
-    <div class="col-lg-8">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Aylık Bilet Trendi" %}</h6>
-                <div style="position: relative; height: 260px;">
-                    <canvas id="monthlyChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Durum dağılımı pasta -->
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Durum Dağılımı" %}</h6>
-                <div style="position: relative; height: 260px;">
-                    <canvas id="statusChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{# ═══════════════ PERSONEL TAB ═══════════════ #}
+<div class="tab-pane fade" id="tab-personnel">
 
-<!-- Departman karşılaştırma -->
-<div class="row g-3 mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Departman Karşılaştırması" %}</h6>
-                <div style="position: relative; height: 300px;">
-                    <canvas id="deptChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Departman performans tablosu -->
-<div class="row g-3 mb-4">
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Departman Performansı" %}</h6>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>{% trans "Departman" %}</th>
-                                <th class="text-center">{% trans "Toplam" %}</th>
-                                <th class="text-center">{% trans "Açık" %}</th>
-                                <th class="text-center">{% trans "Ort. Çözüm" %}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for dept in dept_avg_resolution %}
-                                <tr>
-                                    <td>{{ dept.name }}</td>
-                                    <td class="text-center">{{ dept.closed_count }}</td>
-                                    <td class="text-center">
-                                        {% for d in departments %}
-                                            {% if d.name == dept.name %}{{ d.open_tickets }}{% endif %}
-                                        {% endfor %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if dept.avg_hours != None %}
-                                            {% blocktrans with h=dept.avg_hours %}{{ h }} hours{% endblocktrans %}
-                                        {% else %}
-                                            <span class="text-muted">—</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr><td colspan="4" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- En çok talep alan kategoriler -->
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "En Çok Talep Alan Kategoriler" %}</h6>
-                {% if top_categories %}
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3"><i class="bi bi-trophy text-warning me-1"></i>{% trans "En Yüksek Memnuniyet (CSAT)" %}</h6>
+                    {% if personnel_csat_ranked %}
                     <div class="list-group list-group-flush">
-                        {% for cat in top_categories %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        {% for p in personnel_csat_ranked %}
+                            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&assigned_to={{ p.pk }}"
+                               class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
                                 <div>
-                                    <span>{{ cat.name }}</span>
-                                    <small class="text-muted d-block">{{ cat.department_name }}</small>
+                                    <span>{{ p.name }}</span>
+                                    <small class="text-muted d-block">{{ p.department }}</small>
                                 </div>
-                                <span class="badge bg-dark rounded-pill">{{ cat.ticket_count }}</span>
-                            </div>
+                                <span class="badge bg-warning text-dark">{{ p.avg_csat }}<i class="bi bi-star-fill ms-1"></i></span>
+                            </a>
                         {% endfor %}
                     </div>
-                {% else %}
-                    <p class="text-muted text-center mb-0">{% trans "Veri yok" %}</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Personel iş yükü tablosu -->
-<div class="row g-3 mb-4">
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Personel İş Yükü" %}</h6>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>{% trans "Personel" %}</th>
-                                <th class="text-center">{% trans "Aktif" %}</th>
-                                <th class="text-center">{% trans "Kapattığı" %}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in personnel %}
-                                <tr>
-                                    <td>{{ p.get_full_name|default:p.username }}</td>
-                                    <td class="text-center">
-                                        {% if p.active_tickets > 0 %}
-                                            <span class="badge bg-warning text-dark">{{ p.active_tickets }}</span>
-                                        {% else %}
-                                            <span class="text-muted">0</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">{{ p.total_closed }}</td>
-                                </tr>
-                            {% empty %}
-                                <tr><td colspan="3" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    {% else %}<p class="text-muted text-center mb-0">{% trans "Veri yok" %}</p>{% endif %}
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Personel ortalama çözüm süresi -->
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Personel Ort. Çözüm Süresi" %}</h6>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Personel</th>
-                                <th class="text-center">{% trans "Ort. Süre" %}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in personnel_avg %}
-                                <tr>
-                                    <td>{{ p.name }}</td>
-                                    <td class="text-center">
-                                        {% if p.avg_hours != None %}
-                                            {% blocktrans with h=p.avg_hours %}{{ h }} hours{% endblocktrans %}
-                                        {% else %}
-                                            <span class="text-muted">—</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr><td colspan="2" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Personel Karşılaştırma — Kategori bazlı başarı oranı -->
-<div class="row g-3 mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-                    <h6 class="text-muted mb-0">{% trans "Personel Karşılaştırma — Kategori Bazlı Başarı Oranı" %}</h6>
-                    <form method="get" class="d-flex gap-2 align-items-center">
-                        {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from }}">{% endif %}
-                        {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to }}">{% endif %}
-                        <select name="compare_category" class="form-select form-select-sm" style="min-width: 240px;"
-                                onchange="this.form.submit()">
-                            {% for opt in category_compare.options %}
-                                <option value="{{ opt.id }}"
-                                    {% if category_compare.selected_id|stringformat:"s" == opt.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ opt.name }}{% if opt.department %} — {{ opt.department }}{% endif %}
-                                </option>
-                            {% empty %}
-                                <option value="">{% trans "Kategori yok" %}</option>
-                            {% endfor %}
-                        </select>
-                    </form>
-                </div>
-                {% if category_compare.labels %}
-                    <div style="position: relative; height: 320px;">
-                        <canvas id="categoryCompareChart"></canvas>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3"><i class="bi bi-arrow-counterclockwise text-danger me-1"></i>{% trans "En Yüksek Tekrar Açılma" %}</h6>
+                    {% if personnel_reopen_ranked %}
+                    <div class="list-group list-group-flush">
+                        {% for p in personnel_reopen_ranked %}
+                            <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&assigned_to={{ p.pk }}&reopened=1"
+                               class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span>{{ p.name }}</span>
+                                    <small class="text-muted d-block">{{ p.department }}</small>
+                                </div>
+                                <span class="badge bg-danger">%{{ p.reopen_rate_pct|floatformat:1 }}</span>
+                            </a>
+                        {% endfor %}
                     </div>
-                    <small class="text-muted d-block mt-2">
-                        {% trans "Başarı: kullanıcı bileti kapattıktan sonra bilet yeniden açılmadıysa." %}
-                    </small>
-                {% else %}
-                    <p class="text-muted text-center mb-0">{% trans "Bu kategoride çözülmüş bilet bulunamadı." %}</p>
-                {% endif %}
+                    {% else %}<p class="text-muted text-center mb-0">{% trans "Tekrar açılma kaydı yok" %}</p>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Personel iş yükü tablosu #}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="text-muted mb-3">{% trans "Personel İş Yükü ve Performans" %}</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Personel" %}</th>
+                            <th class="text-center">{% trans "Aktif" %}</th>
+                            <th class="text-center">{% trans "Çözüldü" %}</th>
+                            <th class="text-center">{% trans "Kapandı" %}</th>
+                            <th class="text-center">{% trans "Eskalasyon" %}</th>
+                            <th class="text-center">{% trans "Reopen %" %}</th>
+                            <th class="text-center">{% trans "Ort. Çözüm" %}</th>
+                            <th class="text-center">{% trans "SLA %" %}</th>
+                            <th class="text-center">{% trans "CSAT" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in personnel %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&assigned_to={{ p.pk }}" class="text-decoration-none">
+                                    {{ p.name }}
+                                </a>
+                                <small class="d-block text-muted">{{ p.department }}</small>
+                            </td>
+                            <td class="text-center">{% if p.active %}<span class="badge bg-warning text-dark">{{ p.active }}</span>{% else %}<span class="text-muted">0</span>{% endif %}</td>
+                            <td class="text-center">{{ p.resolved }}</td>
+                            <td class="text-center">{{ p.closed }}</td>
+                            <td class="text-center">{% if p.escalated %}<span class="badge bg-danger">{{ p.escalated }}</span>{% else %}<span class="text-muted">0</span>{% endif %}</td>
+                            <td class="text-center">
+                                {% if p.reopen_rate_pct != None %}
+                                    <span class="{% if p.reopen_rate_pct >= 15 %}text-danger fw-bold{% endif %}">%{{ p.reopen_rate_pct|floatformat:1 }}</span>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if p.avg_hours != None %}{{ p.avg_hours }} {% trans "saat" %}{% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if p.sla_compliance_pct != None %}
+                                    <span class="{% if p.sla_compliance_pct < 70 %}text-danger fw-bold{% elif p.sla_compliance_pct < 90 %}text-warning{% else %}text-success{% endif %}">%{{ p.sla_compliance_pct|floatformat:1 }}</span>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if p.avg_csat != None %}<span class="badge bg-warning text-dark">{{ p.avg_csat }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="9" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# Personel × Kategori karnesi #}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="text-muted mb-3"><i class="bi bi-grid-3x3 me-1"></i>{% trans "Personel × Kategori Karnesi (En Yoğun 30 Hücre)" %}</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Personel" %}</th>
+                            <th>{% trans "Kategori" %}</th>
+                            <th class="text-center">{% trans "Bilet Sayısı" %}</th>
+                            <th class="text-center">{% trans "Ort. Çözüm Süresi" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cell in agent_category_matrix %}
+                        <tr>
+                            <td>{{ cell.agent_name }}</td>
+                            <td>{{ cell.category_name }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&assigned_to={{ cell.agent_id }}&category={{ cell.category_id }}" class="badge bg-dark text-decoration-none">{{ cell.count }}</a>
+                            </td>
+                            <td class="text-center">
+                                {% if cell.avg_hours != None %}{{ cell.avg_hours }} {% trans "saat" %}{% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Saatlik dağılım + ortalama çözüm süresi -->
-<div class="row g-3 mb-4">
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Saatlere Göre Bilet Açılma Dağılımı" %}</h6>
-                <div style="position: relative; height: 280px;">
-                    <canvas id="hourlyOpenChart"></canvas>
+{# ═══════════════ KATEGORİ TAB ═══════════════ #}
+<div class="tab-pane fade" id="tab-categories">
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">{% trans "En Çok Talep Alan Kategoriler" %}</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Kategori" %}</th>
+                                    <th>{% trans "Departman" %}</th>
+                                    <th class="text-center">{% trans "Bilet" %}</th>
+                                    <th class="text-center">{% trans "SLA Uyum" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cat in top_categories %}
+                                <tr>
+                                    <td><a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&category={{ cat.pk }}" class="text-decoration-none">{{ cat.name }}</a></td>
+                                    <td><small class="text-muted">{{ cat.department_name }}</small></td>
+                                    <td class="text-center"><span class="badge bg-dark">{{ cat.ticket_count }}</span></td>
+                                    <td class="text-center">
+                                        {% if cat.sla_compliance_pct != None %}
+                                            <span class="{% if cat.sla_compliance_pct < 70 %}text-danger fw-bold{% elif cat.sla_compliance_pct < 90 %}text-warning{% else %}text-success{% endif %}">%{{ cat.sla_compliance_pct|floatformat:1 }}</span>
+                                            <small class="text-muted">({{ cat.sla_breach }}/{{ cat.sla_total }})</small>
+                                        {% else %}<span class="text-muted">—</span>{% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <small class="text-muted d-block mt-2">{% trans "İş yükü planlaması için günün hangi saatlerinde yoğunluk yaşandığını gösterir." %}</small>
             </div>
         </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted mb-3">{% trans "Saatlere Göre Ort. Çözüm Süresi (saat)" %}</h6>
-                <div style="position: relative; height: 280px;">
-                    <canvas id="hourlyResolutionChart"></canvas>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3">{% trans "Kategori Yoğunluğu" %}</h6>
+                    <div style="position: relative; height: 320px;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
                 </div>
-                <small class="text-muted d-block mt-2">{% trans "Açılma saatine göre biletlerin ortalama çözüm süresi." %}</small>
             </div>
         </div>
     </div>
 </div>
 
+{# ═══════════════ GİDEN BİLET TAB ═══════════════ #}
+<div class="tab-pane fade" id="tab-outgoing">
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3"><i class="bi bi-box-arrow-up-right me-1"></i>{% trans "Hangi Departman Hangi Kategoride Talep Açıyor" %}</h6>
+                    <p class="small text-muted mb-3">{% trans "Eğitim ihtiyacını tespit etmek için: bir departmanın çalışanlarının en sık başvurduğu konu başlıkları." %}</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Açan Departman" %}</th>
+                                    <th>{% trans "Kategori" %}</th>
+                                    <th>{% trans "Hedef Departman" %}</th>
+                                    <th class="text-center">{% trans "Bilet" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in outgoing_dept_matrix %}
+                                <tr>
+                                    <td><strong>{{ r.sender_dept }}</strong></td>
+                                    <td>{{ r.category_name }}</td>
+                                    <td><small class="text-muted">{{ r.category_dept }}</small></td>
+                                    <td class="text-center"><span class="badge bg-dark">{{ r.count }}</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-3"><i class="bi bi-person-badge me-1"></i>{% trans "En Çok Talep Açan Kullanıcılar" %}</h6>
+                    <div class="list-group list-group-flush">
+                        {% for s in top_senders %}
+                        <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&sender={{ s.pk }}"
+                           class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span>{{ s.name }}</span>
+                                <small class="text-muted d-block">{{ s.department }}</small>
+                            </div>
+                            <span class="badge bg-dark rounded-pill">{{ s.count }}</span>
+                        </a>
+                        {% empty %}
+                        <p class="text-muted text-center mb-0">{% trans "Veri yok" %}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ═══════════════ KARŞILAŞTIRMA TAB (Admin) ═══════════════ #}
+{% if is_admin %}
+<div class="tab-pane fade" id="tab-compare">
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="text-muted mb-3">{% trans "Departman Bilet Dağılımı (Stacked)" %}</h6>
+            <div style="position: relative; height: 320px;">
+                <canvas id="deptChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="text-muted mb-3">{% trans "Departman Performans Karşılaştırması" %}</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Departman" %}</th>
+                            <th class="text-center">{% trans "Toplam" %}</th>
+                            <th class="text-center">{% trans "Açık" %}</th>
+                            <th class="text-center">{% trans "İşlemde" %}</th>
+                            <th class="text-center">{% trans "Çözüldü" %}</th>
+                            <th class="text-center">{% trans "Kapandı" %}</th>
+                            <th class="text-center">{% trans "Eskalasyon" %}</th>
+                            <th class="text-center">{% trans "Ort. Çözüm" %}</th>
+                            <th class="text-center">{% trans "SLA Uyum" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in departments %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&department={{ d.pk }}" class="text-decoration-none">
+                                    <strong>{{ d.name }}</strong>
+                                </a>
+                            </td>
+                            <td class="text-center">{{ d.total }}</td>
+                            <td class="text-center">{{ d.open }}</td>
+                            <td class="text-center">{{ d.in_progress }}</td>
+                            <td class="text-center">{{ d.resolved }}</td>
+                            <td class="text-center">{{ d.closed }}</td>
+                            <td class="text-center">{% if d.escalated %}<span class="badge bg-danger">{{ d.escalated }}</span>{% else %}0{% endif %}</td>
+                            <td class="text-center">{% if d.avg_hours != None %}{{ d.avg_hours }} {% trans "saat" %}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                            <td class="text-center">
+                                {% if d.sla_compliance_pct != None %}
+                                    <span class="{% if d.sla_compliance_pct < 70 %}text-danger fw-bold{% elif d.sla_compliance_pct < 90 %}text-warning{% else %}text-success{% endif %}">%{{ d.sla_compliance_pct|floatformat:1 }}</span>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="9" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+</div>{# /tab-content #}
 {% endblock %}
 
 {% block extra_js %}
-<!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (function () {
-    // ── Tema algılama ────────────────────────────────────────────────────
-    function isDark() {
-        return document.documentElement.getAttribute('data-bs-theme') === 'dark';
-    }
+    function isDark() { return document.documentElement.getAttribute('data-bs-theme') === 'dark'; }
+    function gridColor() { return isDark() ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'; }
+    function textColor() { return isDark() ? '#adb5bd' : '#6c757d'; }
 
-    function gridColor() {
-        return isDark() ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
-    }
-
-    function textColor() {
-        return isDark() ? '#adb5bd' : '#6c757d';
-    }
-
-    // ── Ortak seçenekler ─────────────────────────────────────────────────
     const defaultFont = { family: "'Segoe UI', system-ui, sans-serif", size: 12 };
-
     Chart.defaults.font = defaultFont;
     Chart.defaults.color = textColor();
-    Chart.defaults.animation.duration = 800;
-    Chart.defaults.animation.easing = 'easeOutQuart';
-    Chart.defaults.plugins.tooltip.cornerRadius = 6;
-    Chart.defaults.plugins.tooltip.padding = 10;
-    Chart.defaults.plugins.tooltip.titleFont = { ...defaultFont, weight: '600' };
+    Chart.defaults.animation.duration = 600;
 
-    // ── 1. Aylık Bilet Trendi (çizgi, gradient dolgulu) ─────────────────
-    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-    const gradient = monthlyCtx.createLinearGradient(0, 0, 0, 280);
-    gradient.addColorStop(0, isDark() ? 'rgba(13,110,253,0.35)' : 'rgba(13,110,253,0.2)');
-    gradient.addColorStop(1, 'rgba(13,110,253,0)');
+    const charts = [];
 
-    const monthlyChart = new Chart(monthlyCtx, {
-        type: 'line',
-        data: {
-            labels: {{ monthly_labels|safe }},
-            datasets: [{
-                label: 'Oluşturulan Bilet',
-                data: {{ monthly_counts|safe }},
-                borderColor: '#0d6efd',
-                backgroundColor: gradient,
-                fill: true,
-                tension: 0.4,
-                borderWidth: 2.5,
-                pointBackgroundColor: '#0d6efd',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { intersect: false, mode: 'index' },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function (ctx) {
-                            return ' ' + ctx.parsed.y + ' bilet';
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { color: textColor() },
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: { stepSize: 1, color: textColor() },
-                    grid: { color: gridColor() },
-                }
-            }
-        }
-    });
-
-    // ── 2. Durum Dağılımı (doughnut, iç sayı) ──────────────────────────
-    const statusChart = new Chart(document.getElementById('statusChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Açık', 'İşlemde', 'Kapalı'],
-            datasets: [{
-                data: [{{ open_count }}, {{ in_progress_count }}, {{ closed_count }}],
-                backgroundColor: ['#0d6efd', '#ffc107', '#6c757d'],
-                borderWidth: 0,
-                hoverOffset: 8,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '65%',
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 16,
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        color: textColor(),
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function (ctx) {
-                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                            const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
-                            return ' ' + ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
-                        }
-                    }
-                }
-            }
-        },
-        plugins: [{
-            // Ortaya toplam sayı yazan plugin
-            id: 'centerText',
-            afterDraw(chart) {
-                const { ctx, chartArea: { width, height, top } } = chart;
-                const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                ctx.save();
-                ctx.font = 'bold 1.8rem "Segoe UI", system-ui, sans-serif';
-                ctx.fillStyle = textColor();
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(total, width / 2, top + height / 2);
-                ctx.restore();
-            }
-        }]
-    });
-
-    // ── 3. Departman Karşılaştırması (stacked bar, yuvarlak köşe) ───────
-    const deptChart = new Chart(document.getElementById('deptChart'), {
-        type: 'bar',
-        data: {
-            labels: {{ dept_names|safe }},
-            datasets: [
-                {
-                    label: 'Açık',
-                    data: {{ dept_open|safe }},
-                    backgroundColor: '#0d6efd',
-                    borderRadius: 3,
-                },
-                {
-                    label: 'İşlemde',
-                    data: {{ dept_in_progress|safe }},
-                    backgroundColor: '#ffc107',
-                    borderRadius: 3,
-                },
-                {
-                    label: 'Kapalı',
-                    data: {{ dept_closed|safe }},
-                    backgroundColor: '#6c757d',
-                    borderRadius: 3,
-                },
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 16,
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        color: textColor(),
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        afterBody: function (items) {
-                            const idx = items[0].dataIndex;
-                            const datasets = items[0].chart.data.datasets;
-                            let total = 0;
-                            datasets.forEach(ds => { total += ds.data[idx]; });
-                            return 'Toplam: ' + total;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    stacked: true,
-                    grid: { display: false },
-                    ticks: { color: textColor() },
-                },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    ticks: { stepSize: 1, color: textColor() },
-                    grid: { color: gridColor() },
-                }
-            }
-        }
-    });
-
-    // ── 4. Personel Karşılaştırma — Kategori Bazlı Başarı Oranı ─────────
-    let categoryCompareChart = null;
-    const categoryCompareEl = document.getElementById('categoryCompareChart');
-    if (categoryCompareEl) {
-        const labels = {{ category_compare.labels|safe }};
-        const successRates = {{ category_compare.success_rates|safe }};
-        const totals = {{ category_compare.totals|safe }};
-        categoryCompareChart = new Chart(categoryCompareEl, {
-            type: 'bar',
+    // ── Trend grafiği (açılan vs kapanan) ──
+    const trendCanvas = document.getElementById('trendChart');
+    if (trendCanvas) {
+        const ctx = trendCanvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, 0, 280);
+        grad.addColorStop(0, 'rgba(13,110,253,0.25)');
+        grad.addColorStop(1, 'rgba(13,110,253,0)');
+        charts.push(new Chart(ctx, {
+            type: 'line',
             data: {
-                labels: labels,
+                labels: {{ trend_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Açılan',
+                        data: {{ trend_opened|safe }},
+                        borderColor: '#0d6efd', backgroundColor: grad,
+                        fill: true, tension: 0.35, borderWidth: 2.5,
+                        pointRadius: 3, pointHoverRadius: 6,
+                    },
+                    {
+                        label: 'Kapanan',
+                        data: {{ trend_closed|safe }},
+                        borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.15)',
+                        fill: true, tension: 0.35, borderWidth: 2.5,
+                        pointRadius: 3, pointHoverRadius: 6,
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: gridColor() } }
+                }
+            }
+        }));
+    }
+
+    // ── Durum dağılımı ──
+    const statusCanvas = document.getElementById('statusChart');
+    if (statusCanvas) {
+        charts.push(new Chart(statusCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Açık', 'İşlemde', 'Çözüldü', 'Kapandı', 'Eskalasyon'],
                 datasets: [{
-                    label: 'Başarı Oranı (%)',
-                    data: successRates,
-                    backgroundColor: successRates.map(v =>
-                        v >= 80 ? 'rgba(25,135,84,0.85)' :
-                        v >= 50 ? 'rgba(255,193,7,0.85)' :
-                                  'rgba(220,53,69,0.85)'
-                    ),
-                    borderRadius: 6,
-                    borderSkipped: false,
+                    data: [{{ open_count }}, {{ in_progress_count }}, {{ resolved_count }}, {{ closed_count }}, {{ escalated_count }}],
+                    backgroundColor: ['#0d6efd', '#ffc107', '#0dcaf0', '#6c757d', '#dc3545'],
+                    borderWidth: 0, hoverOffset: 6,
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false, cutout: '62%',
                 plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            afterLabel: function (item) {
-                                return 'Toplam: ' + totals[item.dataIndex] + ' bilet';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { grid: { display: false }, ticks: { color: textColor() } },
-                    y: {
-                        beginAtZero: true, max: 100,
-                        ticks: { color: textColor(), callback: v => '%' + v },
-                        grid: { color: gridColor() },
-                    }
+                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 10, boxWidth: 8 } },
+                    tooltip: { callbacks: { label: (c) => {
+                        const total = c.dataset.data.reduce((a,b)=>a+b,0);
+                        const pct = total ? Math.round(c.parsed/total*100) : 0;
+                        return ` ${c.label}: ${c.parsed} (${pct}%)`;
+                    }}}
                 }
             }
-        });
+        }));
     }
 
-    // ── 5. Saatlere Göre Bilet Açılma Dağılımı ──────────────────────────
-    const hourlyLabels = {{ hourly_labels|safe }}.map(h => String(h).padStart(2, '0') + ':00');
-    const hourlyOpenChart = new Chart(document.getElementById('hourlyOpenChart'), {
-        type: 'bar',
-        data: {
-            labels: hourlyLabels,
-            datasets: [{
-                label: 'Bilet Sayısı',
-                data: {{ hourly_open_counts|safe }},
-                backgroundColor: 'rgba(13,110,253,0.7)',
-                borderRadius: 4,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { grid: { display: false }, ticks: { color: textColor(), maxRotation: 0, autoSkip: true } },
-                y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor() }, grid: { color: gridColor() } }
+    // ── CSAT histogram ──
+    const csatCanvas = document.getElementById('csatChart');
+    if (csatCanvas) {
+        charts.push(new Chart(csatCanvas, {
+            type: 'bar',
+            data: {
+                labels: ['1★','2★','3★','4★','5★'],
+                datasets: [{
+                    data: {{ csat_histogram|safe }},
+                    backgroundColor: ['#dc3545','#fd7e14','#ffc107','#20c997','#198754'],
+                    borderRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { display: false, beginAtZero: true }
+                }
             }
-        }
-    });
+        }));
+    }
 
-    // ── 6. Saatlere Göre Ortalama Çözüm Süresi ──────────────────────────
-    const hourlyResolutionChart = new Chart(document.getElementById('hourlyResolutionChart'), {
-        type: 'line',
-        data: {
-            labels: hourlyLabels,
-            datasets: [{
-                label: 'Ort. Çözüm (saat)',
-                data: {{ hourly_avg_resolution|safe }},
-                borderColor: 'rgba(255,159,64,1)',
-                backgroundColor: 'rgba(255,159,64,0.15)',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 3,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { grid: { display: false }, ticks: { color: textColor(), maxRotation: 0, autoSkip: true } },
-                y: { beginAtZero: true, ticks: { color: textColor(), callback: v => v + ' s' }, grid: { color: gridColor() } }
+    // ── Kategori yoğunluk pie ──
+    const catCanvas = document.getElementById('categoryChart');
+    if (catCanvas) {
+        const labels = [{% for c in top_categories %}"{{ c.name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+        const data = [{% for c in top_categories %}{{ c.ticket_count }}{% if not forloop.last %},{% endif %}{% endfor %}];
+        charts.push(new Chart(catCanvas, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: ['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'],
+                    borderWidth: 0,
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'right', labels: { usePointStyle: true, padding: 10, boxWidth: 8, font: { size: 11 } } } }
             }
-        }
-    });
+        }));
+    }
 
-    // ── Dark mode geçişinde grafik renklerini güncelle ──────────────────
-    const observer = new MutationObserver(function () {
-        const c = textColor();
-        const g = gridColor();
-        const charts = [monthlyChart, statusChart, deptChart, hourlyOpenChart, hourlyResolutionChart];
-        if (categoryCompareChart) charts.push(categoryCompareChart);
+    // ── Departman karşılaştırma (admin) ──
+    const deptCanvas = document.getElementById('deptChart');
+    if (deptCanvas) {
+        charts.push(new Chart(deptCanvas, {
+            type: 'bar',
+            data: {
+                labels: {{ dept_names|safe }},
+                datasets: [
+                    { label: 'Açık', data: {{ dept_open|safe }}, backgroundColor: '#0d6efd', borderRadius: 3 },
+                    { label: 'İşlemde', data: {{ dept_in_progress|safe }}, backgroundColor: '#ffc107', borderRadius: 3 },
+                    { label: 'Kapandı', data: {{ dept_closed|safe }}, backgroundColor: '#6c757d', borderRadius: 3 },
+                    { label: 'Eskalasyon', data: {{ dept_escalated|safe }}, backgroundColor: '#dc3545', borderRadius: 3 },
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, grid: { color: gridColor() } }
+                }
+            }
+        }));
+    }
+
+    // Dark mode geçişi
+    new MutationObserver(() => {
+        const c = textColor(), g = gridColor();
         charts.forEach(chart => {
-            if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
-                chart.options.plugins.legend.labels.color = c;
-            }
             if (chart.options.scales) {
-                Object.values(chart.options.scales).forEach(scale => {
-                    if (scale.ticks) scale.ticks.color = c;
-                    if (scale.grid) scale.grid.color = g;
+                Object.values(chart.options.scales).forEach(s => {
+                    if (s.ticks) s.ticks.color = c;
+                    if (s.grid) s.grid.color = g;
                 });
             }
             chart.update('none');
         });
-    });
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
 
-    observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-bs-theme'],
+    // Form select/input'larını Bootstrap'a uygunlaştır (filtre çubuğu)
+    document.querySelectorAll('.card-body form select, .card-body form input[type="date"]').forEach(el => {
+        if (!el.classList.contains('form-control') && !el.classList.contains('form-select')) {
+            if (el.tagName === 'SELECT') el.classList.add('form-select', 'form-select-sm');
+            else el.classList.add('form-control', 'form-control-sm');
+        }
     });
 })();
 </script>

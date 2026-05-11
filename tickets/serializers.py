@@ -83,7 +83,9 @@ class TicketDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'subject', 'message', 'attachments', 'tags',
             'status', 'status_display', 'priority', 'priority_display',
-            'resolution_note',
+            'resolution_note', 'resolution_confirmed',
+            'resolved_at', 'reopen_count', 'rejection_reason',
+            'escalated_at', 'csat_rating',
             'department', 'department_name', 'category', 'category_name',
             'sender', 'assigned_to',
             'created_at', 'updated_at', 'closed_at',
@@ -152,15 +154,36 @@ class TicketUpdateSerializer(serializers.ModelSerializer):
         return ticket
 
 
-# Bilet kapatma serializer'ı
-class TicketCloseSerializer(serializers.Serializer):
-    resolution_note = serializers.CharField(required=False, default='', allow_blank=True)
+# Bilet çözüldü olarak işaretleme — resolution_note zorunlu
+class TicketResolveSerializer(serializers.Serializer):
+    resolution_note = serializers.CharField(required=True, allow_blank=False, max_length=1000)
+
+
+# Çözüm reddi — gerekçe zorunlu
+class TicketRejectResolutionSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=True, allow_blank=False, max_length=1000)
+
+
+# CSAT — 1-5 puan
+class TicketCsatSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
 
 
 # Bilet transfer serializer'ı
 class TicketTransferSerializer(serializers.Serializer):
     department = serializers.IntegerField()
     category = serializers.IntegerField(required=False, allow_null=True, default=None)
+
+    def validate(self, attrs):
+        from departments.models import Category
+        cat_id = attrs.get('category')
+        dept_id = attrs.get('department')
+        if cat_id and dept_id:
+            if not Category.objects.filter(pk=cat_id, department_id=dept_id).exists():
+                raise serializers.ValidationError({
+                    'category': 'Seçilen kategori bu departmana ait değil.',
+                })
+        return attrs
 
 
 # Bilet yorum serializer'ı
@@ -169,5 +192,12 @@ class TicketCommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TicketComment
-        fields = ['id', 'author', 'content', 'created_at']
+        fields = ['id', 'author', 'content', 'attachment', 'created_at']
         read_only_fields = ['id', 'author', 'created_at']
+
+    def validate(self, attrs):
+        if not attrs.get('content') and not attrs.get('attachment'):
+            raise serializers.ValidationError(
+                'Mesaj veya dosya eklerinden en az birini gönderin.'
+            )
+        return attrs

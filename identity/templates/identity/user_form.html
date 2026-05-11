@@ -19,7 +19,8 @@
 
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
-                <form method="post" novalidate>
+                <form method="post" novalidate id="userForm"
+                      onsubmit="return confirmAdminRoleAssignment();">
                     {% csrf_token %}
 
                     <!-- Kullanıcı Adı -->
@@ -166,4 +167,33 @@
 
     </div>
 </div>
+
+{# ADMIN rolü için onay diyaloğu — yetki yükseltmenin yanlışlıkla yapılmasını önler #}
+<script>
+(function () {
+    const ADMIN_VALUE = 'ADMIN';
+    {% if profile_user %}
+    const ORIGINAL_ROLE = '{{ profile_user.role }}';
+    {% else %}
+    const ORIGINAL_ROLE = '';
+    {% endif %}
+
+    window.confirmAdminRoleAssignment = function () {
+        const sel = document.getElementById('id_role');
+        if (!sel) return true;
+        const newRole = sel.value;
+        if (newRole !== ADMIN_VALUE) return true;
+        // Eğer kullanıcı zaten ADMIN ise (sadece güncellemede) onay sorma
+        if (ORIGINAL_ROLE === ADMIN_VALUE) return true;
+        const msg =
+            '⚠️ DİKKAT: Bu kullanıcıya ADMIN rolü atamak üzeresiniz.\n\n' +
+            'ADMIN rolü tüm sisteme tam erişim sağlar:\n' +
+            '  • Tüm kullanıcıları yönetir\n' +
+            '  • Tüm departmanları + bilet/etiket/audit log\n' +
+            '  • Django admin paneline (is_staff) erişim\n\n' +
+            'Onaylamak için TAMAM\'a basın.';
+        return confirm(msg);
+    };
+})();
+</script>
 {% endblock %}

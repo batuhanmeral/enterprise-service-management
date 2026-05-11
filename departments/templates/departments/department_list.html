@@ -43,12 +43,8 @@
                     </div>
                     <div class="card-footer bg-transparent border-0 pt-0">
                         <small class="text-muted">
-                            <i class="bi bi-person-badge me-1"></i>{% trans "Yönetici:" %}
-                            {% if dept.manager %}
-                                <span class="text-body fw-medium">{{ dept.manager.get_full_name|default:dept.manager.username }}</span>
-                            {% else %}
-                                <span class="fst-italic">{% trans "Atanmamış" %}</span>
-                            {% endif %}
+                            <i class="bi bi-person-badge me-1"></i>
+                            {% blocktrans count n=dept.manager_count %}{{ n }} yönetici{% plural %}{{ n }} yönetici{% endblocktrans %}
                         </small>
                     </div>
                 </div>

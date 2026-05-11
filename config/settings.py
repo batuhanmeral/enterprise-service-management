@@ -178,6 +178,7 @@ REST_FRAMEWORK = {
         'login': '10/min',        # login: dakikada 10 deneme (IP başına)
         'register': '5/hour',     # register: saatte 5 (kötüye kullanım önleme)
         'password_change': '5/hour',
+        'ticket_create': '30/hour',   # bilet oluşturma — kullanıcı başına spam koruması
     },
 }
 

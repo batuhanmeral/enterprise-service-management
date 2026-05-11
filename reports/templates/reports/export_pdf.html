@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="tr">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'tr' }}">
 <head>
     <meta charset="utf-8">
     <style>
@@ -62,29 +62,29 @@
     </style>
 </head>
 <body>
-    <h1>ESMS - Bilet Raporu</h1>
-    <div class="meta">Oluşturulma: {{ generated_at }}</div>
+    <h1>ESMS - {% trans "Bilet Raporu" %}</h1>
+    <div class="meta">{% trans "Oluşturulma" %}: {{ generated_at }}</div>
 
     <div class="stats">
-        <span><b>Toplam:</b> {{ total }}</span>
-        <span><b>Açık:</b> {{ open_count }}</span>
-        <span><b>İşlemde:</b> {{ in_progress_count }}</span>
-        <span><b>Kapalı:</b> {{ closed_count }}</span>
+        <span><b>{% trans "Toplam" %}:</b> {{ total }}</span>
+        <span><b>{% trans "Açık" %}:</b> {{ open_count }}</span>
+        <span><b>{% trans "İşlemde" %}:</b> {{ in_progress_count }}</span>
+        <span><b>{% trans "Kapalı" %}:</b> {{ closed_count }}</span>
     </div>
 
     <table>
         <thead>
             <tr>
                 <th>#</th>
-                <th>Konu</th>
-                <th>Durum</th>
-                <th>Öncelik</th>
-                <th>Departman</th>
-                <th>Kategori</th>
-                <th>Etiketler</th>
-                <th>Talep Sahibi</th>
-                <th>Üstlenen</th>
-                <th>Tarih</th>
+                <th>{% trans "Konu" %}</th>
+                <th>{% trans "Durum" %}</th>
+                <th>{% trans "Öncelik" %}</th>
+                <th>{% trans "Departman" %}</th>
+                <th>{% trans "Kategori" %}</th>
+                <th>{% trans "Etiketler" %}</th>
+                <th>{% trans "Talep Sahibi" %}</th>
+                <th>{% trans "Üstlenen" %}</th>
+                <th>{% trans "Tarih" %}</th>
             </tr>
         </thead>
         <tbody>

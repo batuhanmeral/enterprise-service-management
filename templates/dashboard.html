@@ -19,25 +19,66 @@
 <!-- EMPLOYEE DASHBOARD -->
 {% if user.role == 'EMPLOYEE' %}
     <div class="row g-3 mb-4">
-        <div class="col-4">
+        <div class="col-md-3 col-6">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold text-primary mb-0">{{ my_open }}</div>
-                <small class="text-muted">{% trans "Açık Taleplerim" %}</small>
+                <small class="text-muted">{% trans "Açık" %}</small>
             </div>
         </div>
-        <div class="col-4">
+        <div class="col-md-3 col-6">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold text-warning mb-0">{{ my_in_progress }}</div>
                 <small class="text-muted">{% trans "İşlemde" %}</small>
             </div>
         </div>
-        <div class="col-4">
+        <div class="col-md-3 col-6">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
-                <div class="display-6 fw-bold text-secondary mb-0">{{ my_closed }}</div>
-                <small class="text-muted">{% trans "Çözüldü" %}</small>
+                <div class="display-6 fw-bold text-info mb-0">{{ my_resolved }}</div>
+                <small class="text-muted">{% trans "Çözüldü (Onayım Bekleniyor)" %}</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-success mb-0">{{ my_closed }}</div>
+                <small class="text-muted">{% trans "Kapandı" %}</small>
             </div>
         </div>
     </div>
+
+    {% if awaiting_action %}
+    <div class="card border-0 shadow-sm border-start border-4 border-warning mb-4">
+        <div class="card-body">
+            <h6 class="mb-2">
+                <i class="bi bi-bell me-1 text-warning"></i>{% trans "Sizin Yanıtınızı Bekliyor" %}
+            </h6>
+            <p class="text-muted small mb-3">
+                {% trans "Aşağıdaki biletler için onay vermeniz veya memnuniyet puanı bırakmanız bekleniyor." %}
+            </p>
+            <div class="list-group list-group-flush">
+                {% for t in awaiting_action %}
+                    <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span>{{ t.subject }}</span>
+                            <small class="text-muted d-block">
+                                {{ t.department.name|default:"—" }} ·
+                                {% if t.status == 'RESOLVED' %}
+                                    {% trans "Çözüm onayı bekliyor" %}
+                                {% else %}
+                                    {% trans "Memnuniyet puanı bekliyor" %}
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% if t.status == 'RESOLVED' %}
+                            <span class="badge bg-info text-dark align-self-center">{% trans "Onayla" %}</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark align-self-center"><i class="bi bi-star me-1"></i>{% trans "Puanla" %}</span>
+                        {% endif %}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="row g-3">
         <div class="col-lg-8">
@@ -56,8 +97,12 @@
                                         <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
                                     {% elif t.status == 'IN_PROGRESS' %}
                                         <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary align-self-center">{% trans "Kapalı" %}</span>
+                                    {% elif t.status == 'RESOLVED' %}
+                                        <span class="badge bg-info text-dark align-self-center">{% trans "Çözüldü" %}</span>
+                                    {% elif t.status == 'CLOSED' %}
+                                        <span class="badge bg-success align-self-center">{% trans "Kapandı" %}</span>
+                                    {% elif t.status == 'ESCALATED' %}
+                                        <span class="badge bg-danger align-self-center">{% trans "Eskalasyon" %}</span>
                                     {% endif %}
                                 </a>
                             {% endfor %}
@@ -195,28 +240,40 @@
 <!-- MANAGER DASHBOARD -->
 {% elif user.role == 'MANAGER' %}
     <div class="row g-3 mb-4">
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold mb-0">{{ dept_total }}</div>
                 <small class="text-muted">{% trans "Toplam" %}</small>
             </div>
         </div>
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold text-primary mb-0">{{ dept_open }}</div>
                 <small class="text-muted">{% trans "Açık" %}</small>
             </div>
         </div>
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold text-warning mb-0">{{ dept_in_progress }}</div>
                 <small class="text-muted">{% trans "İşlemde" %}</small>
             </div>
         </div>
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
-                <div class="display-6 fw-bold text-secondary mb-0">{{ dept_closed }}</div>
-                <small class="text-muted">{% trans "Kapalı" %}</small>
+                <div class="display-6 fw-bold text-info mb-0">{{ dept_resolved }}</div>
+                <small class="text-muted">{% trans "Çözüldü" %}</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-4">
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-success mb-0">{{ dept_closed }}</div>
+                <small class="text-muted">{% trans "Kapandı" %}</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-4">
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center {% if dept_escalated %}border border-danger{% endif %}">
+                <div class="display-6 fw-bold text-danger mb-0">{{ dept_escalated }}</div>
+                <small class="text-muted">{% trans "Eskalasyon" %}</small>
             </div>
         </div>
     </div>
@@ -268,8 +325,12 @@
                                         <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
                                     {% elif t.status == 'IN_PROGRESS' %}
                                         <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary align-self-center">{% trans "Kapalı" %}</span>
+                                    {% elif t.status == 'RESOLVED' %}
+                                        <span class="badge bg-info text-dark align-self-center">{% trans "Çözüldü" %}</span>
+                                    {% elif t.status == 'CLOSED' %}
+                                        <span class="badge bg-success align-self-center">{% trans "Kapandı" %}</span>
+                                    {% elif t.status == 'ESCALATED' %}
+                                        <span class="badge bg-danger align-self-center">{% trans "Eskalasyon" %}</span>
                                     {% endif %}
                                 </a>
                             {% endfor %}
@@ -286,28 +347,40 @@
 <!-- ADMIN DASHBOARD -->
 {% elif user.role == 'ADMIN' %}
     <div class="row g-3 mb-4">
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold mb-0">{{ total_tickets }}</div>
-                <small class="text-muted">{% trans "Toplam Bilet" %}</small>
+                <small class="text-muted">{% trans "Toplam" %}</small>
             </div>
         </div>
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold text-primary mb-0">{{ total_open }}</div>
                 <small class="text-muted">{% trans "Açık" %}</small>
             </div>
         </div>
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
                 <div class="display-6 fw-bold text-warning mb-0">{{ total_in_progress }}</div>
                 <small class="text-muted">{% trans "İşlemde" %}</small>
             </div>
         </div>
-        <div class="col-3">
+        <div class="col-md-2 col-4">
             <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
-                <div class="display-6 fw-bold text-secondary mb-0">{{ total_closed }}</div>
-                <small class="text-muted">{% trans "Kapalı" %}</small>
+                <div class="display-6 fw-bold text-info mb-0">{{ total_resolved }}</div>
+                <small class="text-muted">{% trans "Çözüldü" %}</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-4">
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center">
+                <div class="display-6 fw-bold text-success mb-0">{{ total_closed }}</div>
+                <small class="text-muted">{% trans "Kapandı" %}</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-4">
+            <div class="card border-0 shadow-sm text-center py-3 h-100 d-flex flex-column justify-content-center align-items-center {% if total_escalated %}border border-danger{% endif %}">
+                <div class="display-6 fw-bold text-danger mb-0">{{ total_escalated }}</div>
+                <small class="text-muted">{% trans "Eskalasyon" %}</small>
             </div>
         </div>
     </div>
@@ -362,8 +435,12 @@
                                         <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
                                     {% elif t.status == 'IN_PROGRESS' %}
                                         <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary align-self-center">{% trans "Kapalı" %}</span>
+                                    {% elif t.status == 'RESOLVED' %}
+                                        <span class="badge bg-info text-dark align-self-center">{% trans "Çözüldü" %}</span>
+                                    {% elif t.status == 'CLOSED' %}
+                                        <span class="badge bg-success align-self-center">{% trans "Kapandı" %}</span>
+                                    {% elif t.status == 'ESCALATED' %}
+                                        <span class="badge bg-danger align-self-center">{% trans "Eskalasyon" %}</span>
                                     {% endif %}
                                 </a>
                             {% endfor %}
@@ -379,7 +456,7 @@
             </a>
 
             {% if pending_users_count %}
-            <a href="{% url 'identity:user_list' %}" class="btn btn-warning w-100 mt-3 text-dark fw-bold">
+            <a href="{% url 'identity:user_list' %}" class="btn btn-warning w-100 mt-3 fw-semibold">
                 <i class="bi bi-person-exclamation me-1"></i>{% blocktrans count counter=pending_users_count %}{{ counter }} Onay Bekleyen Kullanıcı{% plural %}{{ counter }} Onay Bekleyen Kullanıcı{% endblocktrans %}
             </a>
             {% endif %}

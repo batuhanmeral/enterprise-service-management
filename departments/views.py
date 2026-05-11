@@ -1,8 +1,9 @@
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.http import JsonResponse, HttpResponseForbidden
@@ -15,33 +16,9 @@ from identity.audit import audit_log, AuditCategory
 from .models import Department, Category
 
 
-# Departman formu — yönetici alanı sadece atanmamış MANAGER rolündeki kullanıcılarla sınırlı
+# Departman formu — manager FK kaldırıldı.
+# Yöneticiler artık User.role=MANAGER + User.department üzerinden türetilir.
 class DepartmentForm(forms.ModelForm):
-    class Meta:
-        model = Department
-        fields = ['name', 'description', 'manager']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Sadece MANAGER rolündeki ve departmanı olmayan kullanıcılar atanabilir.
-        # Güncellemede mevcut yönetici listede kalmalı (departmanı zaten dolu olsa bile).
-        eligible = User.objects.filter(
-            role=Role.MANAGER,
-            department__isnull=True,
-            is_active=True,
-        )
-        instance = kwargs.get('instance') or getattr(self, 'instance', None)
-        if instance and instance.pk and instance.manager_id:
-            eligible = User.objects.filter(
-                Q(pk=instance.manager_id)
-                | Q(role=Role.MANAGER, department__isnull=True, is_active=True)
-            )
-        self.fields['manager'].queryset = eligible.distinct().order_by('first_name', 'last_name', 'username')
-        self.fields['manager'].empty_label = '— Yönetici seçin (opsiyonel) —'
-
-
-# Yönetici (MANAGER) için kısıtlı form — sadece ad ve açıklama
-class DepartmentManagerForm(forms.ModelForm):
     class Meta:
         model = Department
         fields = ['name', 'description']
@@ -60,25 +37,32 @@ class DepartmentListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        from django.db.models import Count, Q
+        # Liste görünümünde personel/çalışan/yönetici sayıları annotate edilir;
+        # ad listesi DEĞİL — admin sadece detayda yöneticilerin adlarını görür.
         return (
             Department.objects
-            .select_related('manager')
             .prefetch_related('categories')
             .annotate(
+                manager_count=Count(
+                    'personnel',
+                    filter=Q(personnel__role=Role.MANAGER, personnel__is_active=True),
+                    distinct=True,
+                ),
                 agent_count=Count(
                     'personnel',
-                    filter=Q(personnel__role__in=[Role.AGENT, Role.MANAGER]),
+                    filter=Q(personnel__role=Role.AGENT, personnel__is_active=True),
+                    distinct=True,
                 ),
                 employee_count=Count(
                     'personnel',
-                    filter=Q(personnel__role=Role.EMPLOYEE),
+                    filter=Q(personnel__role=Role.EMPLOYEE, personnel__is_active=True),
+                    distinct=True,
                 ),
             )
         )
 
 
-# Departman detay — kategoriler ve personel bilgisi ile birlikte
+# Departman detay — kategoriler, yöneticiler, üyeler
 class DepartmentDetailView(LoginRequiredMixin, DetailView):
     model = Department
     template_name = 'departments/department_detail.html'
@@ -86,17 +70,29 @@ class DepartmentDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = self.object.categories.all()
-        context['personnel'] = self.object.personnel.all()
-        # Departman üyeleri: personel (AGENT) + çalışan (EMPLOYEE) — yönetici hariç
+        context['categories'] = (
+            self.object.categories
+            .annotate(ticket_count=Count('tickets'))
+            .order_by('name')
+        )
+        # Yöneticiler — sadece ADMIN görüntülenebilir/yönetebilir
+        context['managers'] = User.objects.filter(
+            department=self.object, role=Role.MANAGER,
+        ).order_by('first_name', 'last_name', 'username')
+        # Diğer üyeler: AGENT + EMPLOYEE
         context['members'] = User.objects.filter(
             department=self.object,
-        ).exclude(
-            role=Role.MANAGER,
+            role__in=[Role.AGENT, Role.EMPLOYEE],
         ).order_by('role', 'first_name', 'last_name')
+
+        # Rol değiştirme dropdown seçenekleri:
+        # - ADMIN: AGENT/EMPLOYEE/MANAGER (3'ü de mümkün)
+        # - MANAGER: AGENT/EMPLOYEE/MANAGER (üyeleri yönetici yapabilir ama
+        #   mevcut MANAGER'ları düşüremez — view-katmanı zorlar)
         context['role_choices'] = [
-            (Role.AGENT, 'Personel'),
             (Role.EMPLOYEE, 'Çalışan'),
+            (Role.AGENT, 'Personel'),
+            (Role.MANAGER, 'Yönetici'),
         ]
         # Atanabilir personel: AGENT rolünde, departmanı boş, aktif
         context['available_personnel'] = User.objects.filter(
@@ -116,10 +112,6 @@ class DepartmentCreateView(AdminRequiredMixin, CreateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        # Atanan yöneticiyi bu departmana bağla — eligible havuzunda tekrar listelenmesin
-        if self.object.manager_id and self.object.manager.department_id != self.object.pk:
-            self.object.manager.department = self.object
-            self.object.manager.save(update_fields=['department'])
         audit_log(self.request, AuditCategory.DEPARTMENT,
                   f'Departman oluşturuldu: {self.object.name}',
                   target=self.object, department=self.object)
@@ -127,15 +119,11 @@ class DepartmentCreateView(AdminRequiredMixin, CreateView):
         return response
 
 
-# Departman güncelleme — ADMIN (tüm alanlar) veya MANAGER (kendi departmanı, sadece ad/açıklama)
+# Departman güncelleme — ADMIN veya departmanın MANAGER'ı (sadece ad/açıklama)
 class DepartmentUpdateView(ManagerOrAdminRequiredMixin, UpdateView):
     model = Department
     template_name = 'departments/department_form.html'
-
-    def get_form_class(self):
-        if self.request.user.role == Role.ADMIN:
-            return DepartmentForm
-        return DepartmentManagerForm
+    form_class = DepartmentForm
 
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
@@ -149,18 +137,7 @@ class DepartmentUpdateView(ManagerOrAdminRequiredMixin, UpdateView):
         return reverse_lazy('departments:department_detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
-        # Yönetici değiştiyse (sadece admin formu): yeni yöneticiyi bu departmana bağla
-        old_manager_id = None
-        if self.request.user.role == Role.ADMIN and self.object.pk:
-            old_manager_id = Department.objects.filter(pk=self.object.pk).values_list('manager_id', flat=True).first()
         response = super().form_valid(form)
-        if self.request.user.role == Role.ADMIN:
-            new_manager = self.object.manager
-            if old_manager_id and old_manager_id != (new_manager.pk if new_manager else None):
-                User.objects.filter(pk=old_manager_id, department=self.object).update(department=None)
-            if new_manager and new_manager.department_id != self.object.pk:
-                new_manager.department = self.object
-                new_manager.save(update_fields=['department'])
         audit_log(self.request, AuditCategory.DEPARTMENT,
                   f'Departman güncellendi: {self.object.name}',
                   target=self.object, department=self.object)
@@ -184,8 +161,6 @@ class DepartmentDeleteView(AdminRequiredMixin, DeleteView):
         return response
 
 
-# Kategori CRUD (departman bağlamında)
-
 # Kategori oluşturma — Manager veya Admin (departmana bağlı)
 class CategoryCreateView(ManagerOrAdminRequiredMixin, CreateView):
     model = Category
@@ -206,7 +181,6 @@ class CategoryCreateView(ManagerOrAdminRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        from django.shortcuts import get_object_or_404
         context['department'] = get_object_or_404(Department, pk=self.kwargs['dept_pk'])
         return context
 
@@ -254,7 +228,7 @@ class CategoryDeleteView(ManagerOrAdminRequiredMixin, DeleteView):
         return response
 
 
-# AJAX endpoint — departmana ait kategorileri JSON olarak döndürür
+# Departmana ait kategorileri JSON olarak döndürür
 @login_required
 def department_categories_api(request, pk):
     categories = Category.objects.filter(department_id=pk).values('id', 'name')
@@ -263,12 +237,8 @@ def department_categories_api(request, pk):
 
 # Departmana personel ekleme — Admin veya departmanın yöneticisi
 @login_required
+@require_POST
 def department_add_personnel(request, pk):
-    from django.shortcuts import get_object_or_404, redirect
-
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
-
     department = get_object_or_404(Department, pk=pk)
 
     # Yetki: ADMIN her departmana, MANAGER sadece kendi departmanına ekleyebilir
@@ -308,12 +278,13 @@ def department_add_personnel(request, pk):
     return redirect('departments:department_detail', pk=pk)
 
 
-# Departman üyesinin rolünü değiştir (AGENT ↔ EMPLOYEE) — Manager veya Admin
+# Departman üyesinin rolünü değiştir.
+# Yetki kuralları:
+#   - ADMIN: tüm yönlerde geçiş (EMPLOYEE ↔ AGENT ↔ MANAGER), ayrıca MANAGER → AGENT/EMPLOYEE düşürme
+#   - MANAGER: EMPLOYEE/AGENT'ı MANAGER yapabilir; başka MANAGER'ı DÜŞÜREMEZ (admin işi)
 @login_required
+@require_POST
 def department_change_member_role(request, pk, user_pk):
-    if request.method != 'POST':
-        return HttpResponseForbidden('Sadece POST istekleri kabul edilir.')
-
     department = get_object_or_404(Department, pk=pk)
 
     is_admin = request.user.role == Role.ADMIN
@@ -331,15 +302,18 @@ def department_change_member_role(request, pk, user_pk):
         messages.warning(request, 'Kendi rolünüzü değiştiremezsiniz.')
         return redirect('departments:department_detail', pk=pk)
 
-    # Sadece AGENT ↔ EMPLOYEE arası geçiş izinli
     new_role = request.POST.get('role', '')
-    if new_role not in (Role.AGENT, Role.EMPLOYEE):
+    if new_role not in (Role.EMPLOYEE, Role.AGENT, Role.MANAGER):
         messages.error(request, 'Geçersiz rol.')
         return redirect('departments:department_detail', pk=pk)
 
     if target_user.role == new_role:
         messages.info(request, f'{target_user.get_full_name() or target_user.username} zaten bu rolde.')
         return redirect('departments:department_detail', pk=pk)
+
+    # MANAGER düşürme yetkisi sadece ADMIN'de
+    if target_user.role == Role.MANAGER and not is_admin:
+        return HttpResponseForbidden('Yöneticilerin rolünü sadece Admin değiştirebilir.')
 
     old_role = target_user.get_role_display()
     target_user.role = new_role

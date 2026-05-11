@@ -29,7 +29,7 @@
             <div class="col-md-2">
                 <label for="filter-category" class="form-label small text-muted mb-1">{% trans "Kategori" %}</label>
                 <select name="category" id="filter-category" class="form-select form-select-sm">
-                    <option value="">— Tümü —</option>
+                    <option value="">{% trans "— Tümü —" %}</option>
                     {% for key, label in categories %}
                         <option value="{{ key }}" {% if current_category == key %}selected{% endif %}>
                             {{ label }}
@@ -40,7 +40,7 @@
             <div class="col-md-3">
                 <label for="filter-department" class="form-label small text-muted mb-1">{% trans "Departman" %}</label>
                 <select name="department" id="filter-department" class="form-select form-select-sm">
-                    <option value="">— Tümü —</option>
+                    <option value="">{% trans "— Tümü —" %}</option>
                     {% for d in departments %}
                         <option value="{{ d.pk }}" {% if current_department|stringformat:"s" == d.pk|stringformat:"s" %}selected{% endif %}>
                             {{ d.name }}
@@ -137,9 +137,11 @@
                         </a>
                     </li>
                 {% endif %}
-                <li class="page-item active">
-                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-                </li>
+                {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        <a class="page-link" href="?{{ qs }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endfor %}
                 {% if page_obj.has_next %}
                     <li class="page-item">
                         <a class="page-link" href="?{{ qs }}&page={{ page_obj.next_page_number }}">

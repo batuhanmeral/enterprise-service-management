@@ -35,17 +35,46 @@
                     </div>
                     
                     <div class="mb-4">
-                        <label for="id_color" class="form-label">{% trans "Renk Kodu" %}</label>
-                        <input type="text"
-                               name="color"
-                               id="id_color"
-                               class="form-control {% if form.color.errors %}is-invalid{% endif %}"
-                               value="{{ form.color.value|default:'#6c757d' }}"
-                               required>
+                        <label class="form-label">{% trans "Renk" %}</label>
+
+                        {# Hazır palet — tek tıkla seçim #}
+                        <div class="d-flex flex-wrap gap-2 mb-2" id="color-palette">
+                            {% for hex, label in color_palette %}
+                                <button type="button"
+                                        class="btn p-0 border palette-swatch"
+                                        data-color="{{ hex }}"
+                                        title="{{ label }} ({{ hex }})"
+                                        style="width:30px;height:30px;background-color:{{ hex }};border-radius:6px;"></button>
+                            {% endfor %}
+                        </div>
+
+                        {# Önizleme + native picker + hex input — birlikte senkronize #}
+                        <div class="input-group">
+                            <span class="input-group-text p-1">
+                                <input type="color"
+                                       id="id_color_picker"
+                                       value="{{ form.color.value|default:'#6c757d' }}"
+                                       style="width:32px;height:32px;border:none;cursor:pointer;background:transparent;">
+                            </span>
+                            <input type="text"
+                                   name="color"
+                                   id="id_color"
+                                   class="form-control {% if form.color.errors %}is-invalid{% endif %}"
+                                   value="{{ form.color.value|default:'#6c757d' }}"
+                                   pattern="^#[0-9A-Fa-f]{6}$"
+                                   maxlength="7"
+                                   required>
+                            <span class="input-group-text" style="min-width:120px;">
+                                <span class="badge rounded-pill" id="tag-preview"
+                                      style="background-color:{{ form.color.value|default:'#6c757d' }};">
+                                    <i class="bi bi-tag-fill me-1"></i>{% trans "Önizleme" %}
+                                </span>
+                            </span>
+                        </div>
                         {% if form.color.errors %}
-                            <div class="invalid-feedback">{{ form.color.errors.0 }}</div>
+                            <div class="invalid-feedback d-block">{{ form.color.errors.0 }}</div>
                         {% endif %}
-                        <small class="text-muted d-block mt-1">{% trans "Örnek: #dc3545 (Acil Kırmızı), #198754 (Yeşil), #0d6efd (Mavi)" %}</small>
+                        <small class="text-muted d-block mt-1">{% trans "Hex format: #RRGGBB" %}</small>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
@@ -62,4 +91,34 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const hexInput = document.getElementById('id_color');
+    const picker = document.getElementById('id_color_picker');
+    const preview = document.getElementById('tag-preview');
+    const swatches = document.querySelectorAll('.palette-swatch');
+
+    function isValidHex(v) { return /^#[0-9A-Fa-f]{6}$/.test(v); }
+
+    function applyColor(hex) {
+        if (!isValidHex(hex)) return;
+        hexInput.value = hex;
+        picker.value = hex;
+        preview.style.backgroundColor = hex;
+    }
+
+    swatches.forEach(btn => {
+        btn.addEventListener('click', () => applyColor(btn.dataset.color));
+    });
+    picker.addEventListener('input', e => applyColor(e.target.value));
+    hexInput.addEventListener('input', e => {
+        const v = e.target.value.trim();
+        if (isValidHex(v)) {
+            picker.value = v;
+            preview.style.backgroundColor = v;
+        }
+    });
+})();
+</script>
 {% endblock %}

@@ -1,13 +1,14 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Profil — Talep Yönetim Sistemi{% endblock %}
+{% block title %}{% trans "Profil" %} — {% trans "Talep Yönetim Sistemi" %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-7">
 
         <h1 class="h4 mb-4">
-            <i class="bi bi-person-circle me-2"></i>Profilim
+            <i class="bi bi-person-circle me-2"></i>{% trans "Profilim" %}
         </h1>
 
         <!-- Kullanıcı bilgileri kartı -->
@@ -16,7 +17,7 @@
                 <div class="d-flex align-items-center mb-4">
                     {% if user.avatar %}
                         <img src="{{ user.avatar.url }}"
-                             alt="Profil fotoğrafı"
+                             alt="{% trans 'Profil fotoğrafı' %}"
                              class="rounded-circle me-3 object-fit-cover"
                              style="width:56px;height:56px;">
                     {% else %}
@@ -33,34 +34,34 @@
 
                 <div class="row g-3">
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">E-posta</small>
-                        <span><i class="bi bi-envelope me-1"></i>{{ user.email|default:"Belirtilmemiş" }}</span>
+                        <small class="text-muted d-block">{% trans "E-posta" %}</small>
+                        <span><i class="bi bi-envelope me-1"></i>{{ user.email|default_if_none:"" }}{% if not user.email %}<span class="text-muted">{% trans "Belirtilmemiş" %}</span>{% endif %}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Telefon</small>
-                        <span><i class="bi bi-phone me-1"></i>{{ user.phone|default:"Belirtilmemiş" }}</span>
+                        <small class="text-muted d-block">{% trans "Telefon" %}</small>
+                        <span><i class="bi bi-phone me-1"></i>{{ user.phone|default_if_none:"" }}{% if not user.phone %}<span class="text-muted">{% trans "Belirtilmemiş" %}</span>{% endif %}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Rol</small>
+                        <small class="text-muted d-block">{% trans "Rol" %}</small>
                         <span><i class="bi bi-shield-check me-1"></i>{{ user.get_role_display }}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Departman</small>
+                        <small class="text-muted d-block">{% trans "Departman" %}</small>
                         <span>
                             <i class="bi bi-building me-1"></i>
                             {% if user.department %}
                                 {{ user.department.name }}
                             {% else %}
-                                <span class="text-muted">Atanmamış</span>
+                                <span class="text-muted">{% trans "Atanmamış" %}</span>
                             {% endif %}
                         </span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Kayıt Tarihi</small>
+                        <small class="text-muted d-block">{% trans "Kayıt Tarihi" %}</small>
                         <span><i class="bi bi-calendar me-1"></i>{{ user.date_joined|date:"d.m.Y" }}</span>
                     </div>
                     <div class="col-sm-6">
-                        <small class="text-muted d-block">Son Giriş</small>
+                        <small class="text-muted d-block">{% trans "Son Giriş" %}</small>
                         <span>
                             <i class="bi bi-clock me-1"></i>
                             {% if user.last_login %}
@@ -77,31 +78,31 @@
         <!-- Bilgi güncelleme formu -->
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
-                <h6 class="mb-3">Bilgilerimi Güncelle</h6>
+                <h6 class="mb-3">{% trans "Bilgilerimi Güncelle" %}</h6>
                 <form method="post" action="{% url 'identity:profile_update' %}" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
 
                     <div class="row g-3">
                         <div class="col-sm-6">
-                            <label for="id_first_name" class="form-label">Ad</label>
+                            <label for="id_first_name" class="form-label">{% trans "Ad" %}</label>
                             <input type="text"
                                    name="first_name"
                                    id="id_first_name"
                                    class="form-control"
                                    value="{{ user.first_name }}"
-                                   placeholder="Adınız">
+                                   placeholder="{% trans 'Adınız' %}">
                         </div>
                         <div class="col-sm-6">
-                            <label for="id_last_name" class="form-label">Soyad</label>
+                            <label for="id_last_name" class="form-label">{% trans "Soyad" %}</label>
                             <input type="text"
                                    name="last_name"
                                    id="id_last_name"
                                    class="form-control"
                                    value="{{ user.last_name }}"
-                                   placeholder="Soyadınız">
+                                   placeholder="{% trans 'Soyadınız' %}">
                         </div>
                         <div class="col-sm-6">
-                            <label for="id_email" class="form-label">E-posta</label>
+                            <label for="id_email" class="form-label">{% trans "E-posta" %}</label>
                             <input type="email"
                                    name="email"
                                    id="id_email"
@@ -110,7 +111,7 @@
                                    placeholder="ornek@sirket.com">
                         </div>
                         <div class="col-sm-6">
-                            <label for="id_phone" class="form-label">Telefon</label>
+                            <label for="id_phone" class="form-label">{% trans "Telefon" %}</label>
                             <input type="text"
                                    name="phone"
                                    id="id_phone"
@@ -118,8 +119,8 @@
                                    value="{{ user.phone|default:'' }}"
                                    placeholder="05XX XXX XX XX">
                         </div>
-                        <div class="col-12">
-                            <label for="id_avatar" class="form-label">Profil Fotoğrafı</label>
+                        <div class="col-sm-8">
+                            <label for="id_avatar" class="form-label">{% trans "Profil Fotoğrafı" %}</label>
                             <input type="file"
                                    name="avatar"
                                    id="id_avatar"
@@ -127,19 +128,18 @@
                                    accept="image/*">
                             {% if user.avatar %}
                                 <div class="mt-2 d-flex align-items-center gap-2">
-                                    <img src="{{ user.avatar.url }}" alt="Mevcut fotoğraf"
+                                    <img src="{{ user.avatar.url }}" alt="{% trans 'Mevcut fotoğraf' %}"
                                          class="rounded-circle object-fit-cover"
-                                         style="width:40px;height:40px;">
-                                    <small class="text-muted">Yeni fotoğraf seçilirse mevcut değiştirilir.</small>
+                                         style="width:32px;height:32px;">
+                                    <small class="text-muted">{% trans "Yeni fotoğraf seçilirse mevcut değiştirilir." %}</small>
                                 </div>
                             {% endif %}
                         </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-dark">
-                            <i class="bi bi-check-lg me-1"></i>Kaydet
-                        </button>
+                        <div class="col-sm-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-dark btn-sm w-100">
+                                <i class="bi bi-check-lg me-1"></i>{% trans "Kaydet" %}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -149,14 +149,14 @@
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-body p-4">
                 <h6 class="mb-3">
-                    <i class="bi bi-key me-1"></i>Şifremi Değiştir
+                    <i class="bi bi-key me-1"></i>{% trans "Şifremi Değiştir" %}
                 </h6>
                 <form method="post" action="{% url 'identity:password_change' %}" novalidate>
                     {% csrf_token %}
 
                     <div class="row g-3">
                         <div class="col-12">
-                            <label for="id_old_password" class="form-label">Mevcut Şifre</label>
+                            <label for="id_old_password" class="form-label">{% trans "Mevcut Şifre" %}</label>
                             <input type="password"
                                    name="old_password"
                                    id="id_old_password"
@@ -165,7 +165,7 @@
                                    required>
                         </div>
                         <div class="col-sm-6">
-                            <label for="id_new_password1" class="form-label">Yeni Şifre</label>
+                            <label for="id_new_password1" class="form-label">{% trans "Yeni Şifre" %}</label>
                             <input type="password"
                                    name="new_password1"
                                    id="id_new_password1"
@@ -174,7 +174,7 @@
                                    required>
                         </div>
                         <div class="col-sm-6">
-                            <label for="id_new_password2" class="form-label">Yeni Şifre (Tekrar)</label>
+                            <label for="id_new_password2" class="form-label">{% trans "Yeni Şifre (Tekrar)" %}</label>
                             <input type="password"
                                    name="new_password2"
                                    id="id_new_password2"
@@ -186,7 +186,7 @@
 
                     <div class="mt-4">
                         <button type="submit" class="btn btn-dark">
-                            <i class="bi bi-shield-lock me-1"></i>Şifreyi Güncelle
+                            <i class="bi bi-shield-lock me-1"></i>{% trans "Şifreyi Güncelle" %}
                         </button>
                     </div>
                 </form>
@@ -194,47 +194,67 @@
         </div>
 
         <!-- Dil tercihi -->
-        {% load i18n %}
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-body p-4">
                 <h6 class="mb-3">
-                    <i class="bi bi-globe2 me-1"></i>Dil Tercihi
+                    <i class="bi bi-globe2 me-1"></i>{% trans "Dil Tercihi" %}
                 </h6>
                 <p class="text-muted small mb-3">
-                    Arayüz dilini değiştirin. Tercih oturumunuza ve tarayıcınıza kaydedilir.
+                    {% trans "Arayüz dilini değiştirin. Tercih oturumunuza ve tarayıcınıza kaydedilir." %}
                 </p>
-                <form action="{% url 'set_language' %}" method="post" class="d-flex flex-wrap gap-2 align-items-center">
-                    {% csrf_token %}
-                    <input name="next" type="hidden" value="{% url 'identity:profile' %}">
-                    <select name="language" class="form-select form-select-sm" style="max-width: 240px;">
-                        {% get_available_languages as LANGUAGES %}
-                        {% get_language_info_list for LANGUAGES as languages %}
-                        {% for lang in languages %}
-                            <option value="{{ lang.code }}" {% if lang.code == LANGUAGE_CODE %}selected{% endif %}>
-                                {% if lang.code == 'tr' %}🇹🇷{% else %}🇬🇧{% endif %}
-                                {{ lang.name_local|capfirst }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-dark btn-sm">
-                        <i class="bi bi-check-lg me-1"></i>Kaydet
+                <div class="d-flex gap-2">
+                    <form action="{% url 'set_language' %}" method="post" class="flex-fill">
+                        {% csrf_token %}
+                        <input name="next" type="hidden" value="{% url 'identity:profile' %}">
+                        <input name="language" type="hidden" value="tr">
+                        <button type="submit" class="btn btn-outline-secondary language-option w-100 {% if LANGUAGE_CODE == 'tr' %}active{% endif %}">
+                            🇹🇷 {% trans "Türkçe" %}
+                        </button>
+                    </form>
+                    <form action="{% url 'set_language' %}" method="post" class="flex-fill">
+                        {% csrf_token %}
+                        <input name="next" type="hidden" value="{% url 'identity:profile' %}">
+                        <input name="language" type="hidden" value="en">
+                        <button type="submit" class="btn btn-outline-secondary language-option w-100 {% if LANGUAGE_CODE == 'en' %}active{% endif %}">
+                            🇬🇧 {% trans "English" %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tema tercihi -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+                <h6 class="mb-3">
+                    <i class="bi bi-palette me-1"></i>{% trans "Tema Tercihi" %}
+                </h6>
+                <p class="text-muted small mb-3">
+                    {% trans "Arayüz temasını seçin. Tercih tarayıcınıza kaydedilir." %}
+                </p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary theme-option flex-fill" data-theme="light" id="page-theme-light">
+                        <i class="bi bi-sun me-1"></i>{% trans "Aydınlık" %}
                     </button>
-                </form>
+                    <button class="btn btn-outline-secondary theme-option flex-fill" data-theme="dark" id="page-theme-dark">
+                        <i class="bi bi-moon me-1"></i>{% trans "Karanlık" %}
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Hesap silme -->
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-body p-4">
-                <h6 class="text-danger mb-3">Hesabımı Sil</h6>
+                <h6 class="text-danger mb-3">{% trans "Hesabımı Sil" %}</h6>
                 <p class="text-muted small mb-3">
-                    Bu işlem hesabınızı deaktif eder ve oturumunuzu sonlandırır. Geri almak için admin ile iletişime geçmeniz gerekir.
+                    {% trans "Bu işlem hesabınızı deaktif eder ve oturumunuzu sonlandırır. Geri almak için admin ile iletişime geçmeniz gerekir." %}
                 </p>
                 <form method="post" action="{% url 'identity:profile_delete' %}"
-                      onsubmit="return confirm('Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');">
+                      onsubmit="return confirm('{% trans 'Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.' %}');">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-danger btn-sm">
-                        <i class="bi bi-trash me-1"></i>Hesabımı Sil
+                        <i class="bi bi-trash me-1"></i>{% trans "Hesabımı Sil" %}
                     </button>
                 </form>
             </div>

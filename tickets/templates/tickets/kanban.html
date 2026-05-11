@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Kanban — Talep Yönetim Sistemi{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h4 mb-0">
+        <i class="bi bi-kanban me-2"></i>{% trans "Kanban Tahtası" %}
+    </h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'tickets:ticket_list' %}" class="btn btn-outline-dark">
+            <i class="bi bi-list me-1"></i>{% trans "Liste Görünümü" %}
+        </a>
+        <a href="{% url 'tickets:ticket_create' %}" class="btn btn-dark">
+            <i class="bi bi-plus-lg me-1"></i>{% trans "Yeni Bilet" %}
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 kanban-board">
+    {# Açık #}
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-primary bg-opacity-10 border-bottom border-primary border-2">
+                <h6 class="mb-0 text-primary fw-bold">
+                    <i class="bi bi-inbox me-1"></i>{% trans "Açık" %}
+                    <span class="badge bg-primary ms-1" id="count-OPEN">{{ open_tickets|length }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-2 kanban-column" data-status="OPEN" style="min-height:400px;">
+                {% for ticket in open_tickets %}
+                    {% include 'tickets/_kanban_card.html' with ticket=ticket %}
+                {% empty %}
+                    <p class="text-muted text-center small mt-3 empty-msg">{% trans "Açık bilet yok" %}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# İşlemde #}
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-warning bg-opacity-10 border-bottom border-warning border-2">
+                <h6 class="mb-0 text-warning-emphasis fw-bold">
+                    <i class="bi bi-gear me-1"></i>{% trans "İşlemde" %}
+                    <span class="badge bg-warning text-dark ms-1" id="count-IN_PROGRESS">{{ in_progress_tickets|length }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-2 kanban-column" data-status="IN_PROGRESS" style="min-height:400px;">
+                {% for ticket in in_progress_tickets %}
+                    {% include 'tickets/_kanban_card.html' with ticket=ticket %}
+                {% empty %}
+                    <p class="text-muted text-center small mt-3 empty-msg">{% trans "İşlemde bilet yok" %}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# Çözüldü (onay bekleniyor) #}
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-info bg-opacity-10 border-bottom border-info border-2">
+                <h6 class="mb-0 text-info-emphasis fw-bold">
+                    <i class="bi bi-hourglass-split me-1"></i>{% trans "Çözüldü" %} <small class="text-muted">{% trans "(onay)" %}</small>
+                    <span class="badge bg-info text-dark ms-1" id="count-RESOLVED">{{ resolved_tickets|length }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-2 kanban-column" data-status="RESOLVED" style="min-height:400px;">
+                {% for ticket in resolved_tickets %}
+                    {% include 'tickets/_kanban_card.html' with ticket=ticket %}
+                {% empty %}
+                    <p class="text-muted text-center small mt-3 empty-msg">{% trans "Çözüldü bilet yok" %}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# Kapandı #}
+    <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-success bg-opacity-10 border-bottom border-success border-2">
+                <h6 class="mb-0 text-success-emphasis fw-bold">
+                    <i class="bi bi-check2-circle me-1"></i>{% trans "Kapandı" %} <small class="text-muted">(30 {% trans "gün" %})</small>
+                    <span class="badge bg-success ms-1" id="count-CLOSED">{{ closed_tickets|length }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-2 kanban-column" data-status="CLOSED" style="min-height:400px;">
+                {% for ticket in closed_tickets %}
+                    {% include 'tickets/_kanban_card.html' with ticket=ticket %}
+                {% empty %}
+                    <p class="text-muted text-center small mt-3 empty-msg">{% trans "Kapanmış bilet yok" %}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if escalated_tickets %}
+<div class="row g-3 kanban-board mt-2">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-danger bg-opacity-10 border-bottom border-danger border-2">
+                <h6 class="mb-0 text-danger fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>{% trans "Eskalasyon" %}
+                    <span class="badge bg-danger ms-1" id="count-ESCALATED">{{ escalated_tickets|length }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-2 kanban-column d-flex flex-wrap gap-2" data-status="ESCALATED">
+                {% for ticket in escalated_tickets %}
+                    <div style="min-width:280px;max-width:320px;">
+                        {% include 'tickets/_kanban_card.html' with ticket=ticket %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# Çözüm notu modal'ı (RESOLVED'a sürükleyince açılır) #}
+<div class="modal fade" id="resolutionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "Çözüldü Olarak İşaretle" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-2">
+                    {% trans "Bu nihai kapanma değildir. Talep sahibi onayladığında veya 3 gün geçtiğinde otomatik kapanır." %}
+                </p>
+                <label class="form-label">{% trans "Çözüm Notu" %} <span class="text-danger">*</span></label>
+                <textarea id="resolutionNote" class="form-control" rows="3" required maxlength="1000"
+                          placeholder="{% trans 'Sorunu nasıl çözdüğünüzü açıklayın...' %}"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% trans "İptal" %}</button>
+                <button type="button" class="btn btn-dark" id="confirmResolveBtn">
+                    <i class="bi bi-check-lg me-1"></i>{% trans "Çözüldü Olarak İşaretle" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.kanban-card {
+    cursor: grab;
+    user-select: none;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+.kanban-card:active { cursor: grabbing; }
+.kanban-card.dragging { opacity: .4; }
+.kanban-column.drag-over {
+    background: rgba(13, 110, 253, 0.08);
+    border-radius: .375rem;
+    outline: 2px dashed rgba(13, 110, 253, 0.4);
+    outline-offset: -4px;
+}
+.kanban-card[data-cant-drag="1"] { cursor: not-allowed; opacity: .85; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+        || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+    const userRole = '{{ user_role }}';
+    const userId = {{ user.pk }};
+    const userDeptId = {{ user_dept_id|default:"null" }};
+
+    const cards = document.querySelectorAll('.kanban-card');
+    const columns = document.querySelectorAll('.kanban-column');
+    let dragged = null;
+    let pendingMoveTo = null;
+    let pendingCard = null;
+
+    // Bir kullanıcının bir kartı belirli bir hedef kolona sürükleyip sürükleyemeyeceğini hesapla
+    function canDrop(card, fromStatus, toStatus) {
+        if (fromStatus === toStatus) return false;
+        const senderId = parseInt(card.dataset.senderId, 10);
+        const assignedId = parseInt(card.dataset.assignedId || '0', 10);
+        const deptId = parseInt(card.dataset.departmentId || '0', 10);
+        const isAdmin = userRole === 'ADMIN';
+        const sameDept = userDeptId === deptId;
+
+        // OPEN → IN_PROGRESS: Aynı dept'in AGENT/MANAGER üyesi üstlenir
+        if (fromStatus === 'OPEN' && toStatus === 'IN_PROGRESS') {
+            return (userRole === 'AGENT' || userRole === 'MANAGER') && sameDept;
+        }
+        // IN_PROGRESS → RESOLVED: Atanan kişi veya Admin (artık doğrudan CLOSED yok)
+        if (fromStatus === 'IN_PROGRESS' && toStatus === 'RESOLVED') {
+            return isAdmin || assignedId === userId;
+        }
+        // CLOSED/ESCALATED → OPEN: Yalnızca Admin override
+        if ((fromStatus === 'CLOSED' || fromStatus === 'ESCALATED') && toStatus === 'OPEN') {
+            return isAdmin;
+        }
+        // RESOLVED'dan sürüklemeyi yasakla — onay/red sürecine girilmemeli
+        return false;
+    }
+
+    cards.forEach(card => {
+        card.draggable = true;
+        card.addEventListener('dragstart', e => {
+            dragged = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+            columns.forEach(c => c.classList.remove('drag-over'));
+            dragged = null;
+        });
+    });
+
+    columns.forEach(col => {
+        col.addEventListener('dragover', e => {
+            if (!dragged) return;
+            const from = dragged.dataset.status;
+            const to = col.dataset.status;
+            if (!canDrop(dragged, from, to)) return;
+            e.preventDefault();
+            col.classList.add('drag-over');
+        });
+        col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+        col.addEventListener('drop', e => {
+            e.preventDefault();
+            col.classList.remove('drag-over');
+            if (!dragged) return;
+            const from = dragged.dataset.status;
+            const to = col.dataset.status;
+            if (!canDrop(dragged, from, to)) return;
+
+            // RESOLVED hedefi ise önce çözüm notu modal'ı (zorunlu)
+            if (to === 'RESOLVED') {
+                pendingCard = dragged;
+                pendingMoveTo = col;
+                document.getElementById('resolutionNote').value = '';
+                new bootstrap.Modal('#resolutionModal').show();
+                return;
+            }
+            performMove(dragged, col, to, '');
+        });
+    });
+
+    document.getElementById('confirmResolveBtn').addEventListener('click', () => {
+        const note = document.getElementById('resolutionNote').value.trim();
+        if (!note) {
+            alert('{% trans "Çözüm notu zorunludur." %}');
+            return;
+        }
+        bootstrap.Modal.getInstance('#resolutionModal').hide();
+        if (pendingCard && pendingMoveTo) {
+            performMove(pendingCard, pendingMoveTo, 'RESOLVED', note);
+        }
+        pendingCard = null;
+        pendingMoveTo = null;
+    });
+
+    function performMove(card, col, newStatus, note) {
+        const ticketPk = card.dataset.ticketPk;
+        const formData = new FormData();
+        formData.append('status', newStatus);
+        if (note) formData.append('resolution_note', note);
+
+        fetch(`/tickets/${ticketPk}/change-status/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf },
+            body: formData,
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+        .then(({ ok, data }) => {
+            if (!ok || !data.ok) {
+                alert(data.error || '{% trans "Hata oluştu." %}');
+                return;
+            }
+            const oldStatus = card.dataset.status;
+            card.dataset.status = newStatus;
+            col.appendChild(card);
+            updateCount(oldStatus, -1);
+            updateCount(newStatus, +1);
+            removeEmptyMsg(col);
+            ensureEmptyMsg(oldStatus);
+        })
+        .catch(err => {
+            alert('{% trans "Sunucu hatası:" %} ' + err.message);
+        });
+    }
+
+    function updateCount(status, delta) {
+        const badge = document.getElementById('count-' + status);
+        if (!badge) return;
+        const cur = parseInt(badge.textContent, 10) || 0;
+        badge.textContent = Math.max(0, cur + delta);
+    }
+
+    function removeEmptyMsg(col) {
+        const msg = col.querySelector('.empty-msg');
+        if (msg) msg.remove();
+    }
+
+    function ensureEmptyMsg(status) {
+        const col = document.querySelector(`.kanban-column[data-status="${status}"]`);
+        if (!col) return;
+        if (col.querySelectorAll('.kanban-card').length === 0 && !col.querySelector('.empty-msg')) {
+            const labels = {
+                OPEN: '{% trans "Açık bilet yok" %}',
+                IN_PROGRESS: '{% trans "İşlemde bilet yok" %}',
+                RESOLVED: '{% trans "Çözüldü bilet yok" %}',
+                CLOSED: '{% trans "Kapanmış bilet yok" %}',
+            };
+            const p = document.createElement('p');
+            p.className = 'text-muted text-center small mt-3 empty-msg';
+            p.textContent = labels[status] || '';
+            col.appendChild(p);
+        }
+    }
+})();
+</script>
+{# CSRF için gizli token #}
+<form style="display:none">{% csrf_token %}</form>
+{% endblock %}

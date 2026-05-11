@@ -1,8 +1,9 @@
-from django.conf import settings
 from django.db import models
 
 
-# Kurumdaki departmanları temsil eden model
+# Kurumdaki departmanları temsil eden model.
+# Yönetici-departman ilişkisi artık FK ile değil, User.role=MANAGER + User.department üzerinden
+# türetilir — bu sayede 1 departmanda 1'den fazla yönetici olabilir.
 class Department(models.Model):
 
     # Departmanın adı
@@ -18,16 +19,6 @@ class Department(models.Model):
         blank=True,
         default='',
         verbose_name='Açıklama',
-    )
-
-    # Departmanın yöneticisi
-    manager = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,  # Yönetici silinse bile departman kalır
-        null=True,
-        blank=True,
-        related_name='managed_departments',
-        verbose_name='Yönetici',
     )
 
     # Departmanın sisteme eklendiği tarih
@@ -51,6 +42,17 @@ class Department(models.Model):
     # Model objesinin sistemde metin olarak nasıl temsil edileceğini belirleyen fonksiyon
     def __str__(self):
         return self.name
+
+    # Departmanın yöneticileri — User.role=MANAGER + User.department=self üzerinden türetilir.
+    # 1 departmanda birden fazla yönetici olabilir.
+    @property
+    def managers(self):
+        from identity.models import User, Role
+        return (
+            User.objects
+            .filter(department=self, role=Role.MANAGER, is_active=True)
+            .order_by('first_name', 'last_name', 'username')
+        )
 
 
 # Departmana ait talep alt kategorisi

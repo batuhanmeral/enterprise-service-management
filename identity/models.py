@@ -99,7 +99,7 @@ class User(AbstractUser):
 # Sistem genelinde tüm aksiyonları kaydeden audit log modeli.
 # Bilet/Kullanıcı/Departman/Kimlik doğrulama gibi farklı kategorilerdeki olayları tutar.
 class AuditLog(models.Model):
-
+    # Olay kategorileri (ENUM sınıfı) 
     class Category(models.TextChoices):
         TICKET = 'TICKET', 'Bilet'
         USER = 'USER', 'Kullanıcı'
@@ -116,12 +116,14 @@ class AuditLog(models.Model):
         related_name='audit_actions',
         verbose_name='İşlemi Yapan',
     )
+
     category = models.CharField(
         max_length=20,
         choices=Category.choices,
         default=Category.OTHER,
         verbose_name='Kategori',
     )
+
     action = models.CharField(max_length=300, verbose_name='Aksiyon')
     target_repr = models.CharField(max_length=200, blank=True, default='', verbose_name='Hedef')
     department = models.ForeignKey(
@@ -132,6 +134,7 @@ class AuditLog(models.Model):
         related_name='audit_logs',
         verbose_name='İlgili Departman',
     )
+
     ticket = models.ForeignKey(
         'tickets.Ticket',
         on_delete=models.SET_NULL,
@@ -140,6 +143,7 @@ class AuditLog(models.Model):
         related_name='audit_logs',
         verbose_name='İlgili Bilet',
     )
+
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Tarih')
 

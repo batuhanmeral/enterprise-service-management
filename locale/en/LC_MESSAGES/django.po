@@ -1,17 +1,14 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: ESMS 1.1\n"
+"Project-Id-Version: ESMS 1.2\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-05-04\n"
+"POT-Creation-Date: 2026-05-09 13:34+0300\n"
+"PO-Revision-Date: 2026-05-07\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-
-# === Sadece NAVBAR + footer çevirileri ===
-# Diğer template'lerdeki {% trans %} çağrıları msgstr boş olduğundan
-# Türkçe msgid'i gösterecektir. Sadece bu listedekiler İngilizceye çevrilir.
 
 msgid "Türkçe"
 msgstr "Turkish"
@@ -19,47 +16,1669 @@ msgstr "Turkish"
 msgid "English"
 msgstr "English"
 
-msgid "Ana Sayfa"
-msgstr "Home"
+msgid "Kategori Sil"
+msgstr "Delete Category"
 
-msgid "Biletler"
-msgstr "Tickets"
+#, python-format
+msgid "Are you sure you want to delete category <strong>\"%(name)s\"</strong>?"
+msgstr ""
+"Are you sure you want to delete category <strong>\"%(name)s\"</strong>?"
 
-msgid "Kullanıcılar"
-msgstr "Users"
+msgid ""
+"Bu işlem geri alınamaz. Kategoriye bağlı biletlerdeki kategori bilgisi boş "
+"olacaktır."
+msgstr ""
+"This action cannot be undone. Tickets linked to this category will lose "
+"their category reference."
 
-msgid "Departmanım"
-msgstr "My Department"
+msgid "Departman"
+msgstr "Department"
+
+msgid "Evet, Sil"
+msgstr "Yes, Delete"
+
+msgid "İptal"
+msgstr "Cancel"
+
+msgid "Kategoriyi Düzenle"
+msgstr "Edit Category"
+
+msgid "Yeni Kategori Ekle"
+msgstr "Add New Category"
+
+#, python-format
+msgid "Department: <strong>%(name)s</strong>"
+msgstr "Department: <strong>%(name)s</strong>"
+
+msgid "Kategori Adı"
+msgstr "Category Name"
+
+msgid "ör: Donanım Arızası"
+msgstr "e.g. Hardware Issue"
+
+msgid "Açıklama"
+msgstr "Description"
+
+msgid "(opsiyonel)"
+msgstr "(optional)"
+
+msgid "Kategorinin kapsamı..."
+msgstr "Scope of the category..."
+
+msgid "Kaydet"
+msgstr "Save"
+
+msgid "Departman Sil"
+msgstr "Delete Department"
+
+#, python-format
+msgid ""
+"Are you sure you want to delete department <strong>\"%(name)s\"</strong>?"
+msgstr ""
+"Are you sure you want to delete department <strong>\"%(name)s\"</strong>?"
+
+msgid ""
+"Bu işlem geri alınamaz. Departmana bağlı tüm kategoriler de silinecektir. "
+"Departmana atanmış kullanıcılar ve biletler sistemde kalır ancak departman "
+"bilgisi boş olur."
+msgstr ""
+"This action cannot be undone. All categories linked to this department will "
+"also be deleted. Users and tickets assigned to the department remain in the "
+"system but their department reference will be cleared."
+
+msgid "Bağlı Kategoriler"
+msgstr "Linked Categories"
+
+#, python-format
+msgid "%(n)s items"
+msgstr "%(n)s items"
+
+msgid "Bağlı Personel"
+msgstr "Linked Personnel"
+
+#, python-format
+msgid "%(n)s people"
+msgstr "%(n)s people"
+
+#, fuzzy, python-format
+#| msgid "Yönetici"
+msgid "%(n)s yönetici"
+msgid_plural "%(n)s yönetici"
+msgstr[0] "Manager"
+msgstr[1] "Manager"
+
+msgid "Düzenle"
+msgstr "Edit"
+
+msgid "Sil"
+msgstr "Delete"
+
+#, python-format
+msgid "Kategoriler (%(n)s)"
+msgstr "Categories (%(n)s)"
+
+msgid "Kategori Ekle"
+msgstr "Add Category"
+
+#, python-format
+msgid "%(n)s bilet"
+msgstr "%(n)s tickets"
+
+msgid "Bu departmanda henüz kategori bulunmuyor."
+msgstr "No categories yet in this department."
+
+#, fuzzy, python-format
+#| msgid "Yönetici"
+msgid "Yönetici (%(n)s)"
+msgid_plural "Yöneticiler (%(n)s)"
+msgstr[0] "Manager"
+msgstr[1] "Manager"
+
+msgid "Ad Soyad"
+msgstr "Full Name"
+
+msgid "E-posta"
+msgstr "Email"
+
+msgid "Telefon"
+msgstr "Phone"
+
+msgid "İşlem"
+msgstr "Action"
+
+#, python-format
+msgid ""
+"%(name)s adlı kullanıcının yöneticilik rolünü düşürmek istediğinize emin "
+"misiniz?"
+msgstr ""
+
+#, fuzzy
+#| msgid "Personel İş Yükü"
+msgid "Personel rolüne düşür"
+msgstr "Agent Workload"
+
+#, fuzzy
+#| msgid "Personel İş Yükü"
+msgid "Personele Düşür"
+msgstr "Agent Workload"
+
+msgid "(Siz)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Bu departmanda henüz üye bulunmuyor."
+msgid "Bu departmanın henüz yöneticisi yok."
+msgstr "No members yet in this department."
+
+msgid ""
+"Bir kullanıcıyı bu departmanın yöneticisi yapmak için aşağıdaki üyeler "
+"tablosundan rolünü 'Yönetici' olarak değiştirin."
+msgstr ""
+
+#, python-format
+msgid "Departman Uyeleri (%(n)s)"
+msgstr "Department Members (%(n)s)"
+
+msgid "Üye Ekle"
+msgstr "Add Member"
+
+msgid "— Boştaki bir personel seçin —"
+msgstr "— Select an available agent —"
+
+msgid "Ekle"
+msgstr "Add"
+
+msgid ""
+"Sadece henüz bir departmana atanmamış personel rolündeki kullanıcılar "
+"listelenir."
+msgstr "Only Agent-role users not yet assigned to any department are listed."
+
+msgid "Eklenebilecek boşta personel bulunmuyor."
+msgstr "No available agents to add."
+
+msgid "Rol"
+msgstr "Role"
+
+msgid "Personel"
+msgstr "Agent"
+
+msgid "Çalışan"
+msgstr "Employee"
+
+#, fuzzy
+#| msgid "Bu hesabı yeniden aktif etmek istediğinize emin misiniz?"
+msgid "Bu kullanıcıyı YÖNETİCİ rolüne yükseltmek istediğinize emin misiniz?"
+msgstr "Are you sure you want to reactivate this account?"
+
+msgid "Bu departmanda henüz üye bulunmuyor."
+msgstr "No members yet in this department."
+
+msgid "Detaylar"
+msgstr "Details"
+
+#, fuzzy
+#| msgid "Üye Sayısı"
+msgid "Yönetici Sayısı"
+msgstr "Number of Members"
+
+msgid "Kategori Sayısı"
+msgstr "Number of Categories"
+
+msgid "Üye Sayısı"
+msgstr "Number of Members"
+
+msgid "Toplam Bilet"
+msgstr "Total Tickets"
+
+msgid "Oluşturulma"
+msgstr "Created"
+
+msgid "Son Güncelleme"
+msgstr "Last Updated"
+
+msgid "Departman Listesine Dön"
+msgstr "Back to Department List"
+
+msgid "Departmanı Düzenle"
+msgstr "Edit Department"
+
+msgid "Yeni Departman Ekle"
+msgstr "Add New Department"
+
+msgid "Departman Adı"
+msgstr "Department Name"
+
+msgid "ör: Bilgi Teknolojileri"
+msgstr "e.g. Information Technology"
+
+msgid "Departmanın sorumluluk alanı..."
+msgstr "Department's area of responsibility..."
 
 msgid "Departmanlar"
 msgstr "Departments"
 
-msgid "Raporlar"
-msgstr "Reports"
+#, python-format
+msgid "%(n)s categories"
+msgstr "%(n)s categories"
 
-msgid "Geçmiş"
-msgstr "History"
+#, python-format
+msgid "%(n)s agents"
+msgstr "%(n)s agents"
 
-msgid "İşlem Geçmişi"
-msgstr "Audit Log"
+#, python-format
+msgid "%(n)s employees"
+msgstr "%(n)s employees"
+
+msgid "Henüz departman bulunmuyor."
+msgstr "No departments yet."
+
+msgid "İlk departmanı ekle"
+msgstr "Add the first department"
+
+msgid "Giriş — Talep Yönetim Sistemi"
+msgstr "Login — Service Management System"
+
+msgid "Talep Yönetim Sistemi"
+msgstr "Service Management System"
+
+msgid "Devam etmek için giriş yapın"
+msgstr "Sign in to continue"
+
+msgid "Kullanıcı Adı"
+msgstr "Username"
+
+msgid "Kullanıcı adınız"
+msgstr "Your username"
+
+msgid "Şifre"
+msgstr "Password"
+
+msgid "Şifreniz"
+msgstr "Your password"
+
+msgid "Giriş Yap"
+msgstr "Sign In"
+
+msgid "Hesabınız yok mu?"
+msgstr "Don't have an account?"
+
+msgid "Kayıt olun"
+msgstr "Register"
 
 msgid "Profil"
 msgstr "Profile"
 
-msgid "Çıkış"
-msgstr "Logout"
+msgid "Profilim"
+msgstr "My Profile"
 
-msgid "Giriş"
-msgstr "Login"
+msgid "Profil fotoğrafı"
+msgstr "Profile picture"
 
-msgid "Dil Seçimi"
+msgid "Belirtilmemiş"
+msgstr "Not specified"
+
+msgid "Atanmamış"
+msgstr "Unassigned"
+
+msgid "Kayıt Tarihi"
+msgstr "Registration Date"
+
+msgid "Son Giriş"
+msgstr "Last Login"
+
+msgid "Bilgilerimi Güncelle"
+msgstr "Update My Information"
+
+msgid "Ad"
+msgstr "First Name"
+
+msgid "Adınız"
+msgstr "Your first name"
+
+msgid "Soyad"
+msgstr "Last Name"
+
+msgid "Soyadınız"
+msgstr "Your last name"
+
+msgid "Profil Fotoğrafı"
+msgstr "Profile Picture"
+
+msgid "Mevcut fotoğraf"
+msgstr "Current photo"
+
+msgid "Yeni fotoğraf seçilirse mevcut değiştirilir."
+msgstr "If a new photo is selected, the current one will be replaced."
+
+msgid "Şifremi Değiştir"
+msgstr "Change Password"
+
+msgid "Mevcut Şifre"
+msgstr "Current Password"
+
+msgid "Yeni Şifre"
+msgstr "New Password"
+
+msgid "Yeni Şifre (Tekrar)"
+msgstr "Confirm New Password"
+
+msgid "Şifreyi Güncelle"
+msgstr "Update Password"
+
+msgid "Dil Tercihi"
+msgstr "Language Preference"
+
+msgid ""
+"Arayüz dilini değiştirin. Tercih oturumunuza ve tarayıcınıza kaydedilir."
+msgstr ""
+"Change the interface language. Your preference is saved to your session and "
+"browser."
+
+msgid "Tema Tercihi"
+msgstr "Theme Preference"
+
+msgid "Arayüz temasını seçin. Tercih tarayıcınıza kaydedilir."
+msgstr "Choose the interface theme. Your preference is saved to your browser."
+
+msgid "Aydınlık"
+msgstr "Light"
+
+msgid "Karanlık"
+msgstr "Dark"
+
+msgid "Hesabımı Sil"
+msgstr "Delete My Account"
+
+msgid ""
+"Bu işlem hesabınızı deaktif eder ve oturumunuzu sonlandırır. Geri almak için "
+"admin ile iletişime geçmeniz gerekir."
+msgstr ""
+
+msgid "Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+msgstr ""
+"Are you sure you want to delete your account? This action cannot be undone."
+
+msgid "Kayıt Ol — Talep Yönetim Sistemi"
+msgstr "Register — Service Management System"
+
+msgid "Yeni hesap oluşturun"
+msgstr "Create a new account"
+
+msgid ""
+"Kayıt sonrası hesabınız admin onayına gönderilecektir. Onaylandıktan sonra "
+"giriş yapabilirsiniz."
+msgstr ""
+"Your account will be sent to admin for approval after registration. You can "
+"log in once approved."
+
+msgid "11 haneli, \"0\" ile başlamalıdır."
+msgstr "11 digits, must start with \"0\"."
+
+msgid ""
+"Seçtiğiniz rol ve departman bir taleptir; nihai karar admin tarafından "
+"verilir."
+msgstr ""
+
+msgid "Şifre belirleyin"
+msgstr "Set a password"
+
+msgid "En az 8 karakter olmalıdır."
+msgstr "Must be at least 8 characters."
+
+msgid "Şifre Tekrar"
+msgstr "Confirm Password"
+
+msgid "Şifrenizi tekrar girin"
+msgstr "Re-enter your password"
+
+msgid "Kayıt Ol"
+msgstr "Register"
+
+msgid "Zaten hesabınız var mı?"
+msgstr "Already have an account?"
+
+msgid "Giriş yapın"
+msgstr "Sign in"
+
+#, fuzzy
+#| msgid "Bekleniyor"
+msgid "Onay bekliyor"
+msgstr "Pending"
+
+msgid ""
+"Kullanıcı aşağıdaki talep ile kayıt oldu — onaylamadan önce gözden geçirin."
+msgstr ""
+
+msgid "Talep edilen rol"
+msgstr ""
+
+#, fuzzy
+#| msgid "Yeni Departman"
+msgid "Talep edilen departman"
+msgstr "New Department"
+
+#, fuzzy
+#| msgid "Departman seçin..."
+msgid "Departman seçilmedi"
+msgstr "Select a department..."
+
+msgid "Onayla"
+msgstr "Approve"
+
+#, fuzzy
+#| msgid "Düzenle"
+msgid "Önce Düzenle"
+msgstr "Edit"
+
+msgid "Hesabı Düzenle"
+msgstr "Edit Account"
+
+msgid "Bu hesabı deaktif etmek istediğinize emin misiniz?"
+msgstr "Are you sure you want to deactivate this account?"
+
+msgid "Bu hesabı yeniden aktif etmek istediğinize emin misiniz?"
+msgstr "Are you sure you want to reactivate this account?"
+
+msgid "Hesabı Deaktif Et"
+msgstr "Deactivate Account"
+
+msgid "Hesabı Aktif Et"
+msgstr "Activate Account"
+
+msgid ""
+"Bu hesabı KALICI olarak silmek istediğinize emin misiniz? Bu işlem geri "
+"alınamaz."
+msgstr ""
+
+msgid "Hesabı Sil"
+msgstr "Delete Account"
+
+msgid "Kişisel Bilgiler"
+msgstr "Personal Information"
+
+msgid "Bilet İstatistikleri"
+msgstr "Ticket Statistics"
+
+msgid "Gönderilen Biletler"
+msgstr "Submitted Tickets"
+
+msgid "Hesap Durumu"
+msgstr "Account Status"
+
+msgid "Durum"
+msgstr "Status"
+
+msgid "Aktif"
+msgstr "Active"
+
+msgid "Pasif"
+msgstr "Inactive"
+
+msgid "Hiç giriş yapmadı"
+msgstr "Never logged in"
+
+msgid "Kullanıcı Listesine Dön"
+msgstr "Back to User List"
+
+msgid "Çözüm Performansı"
+msgstr "Resolution Performance"
+
+msgid "Toplam Çözüm"
+msgstr "Total Resolved"
+
+msgid "Başarılı"
+msgstr "Successful"
+
+msgid "Yeniden Açılan"
+msgstr "Reopened"
+
+msgid "Başarı Oranı"
+msgstr "Success Rate"
+
+msgid "Kategori Bazlı Performans"
+msgstr "Performance by Category"
+
+msgid "Kategori"
+msgstr "Category"
+
+msgid "Toplam"
+msgstr "Total"
+
+msgid "Çözülen Biletler"
+msgstr "Resolved Tickets"
+
+msgid "Konu"
+msgstr "Subject"
+
+msgid "Kapatılma"
+msgstr "Closed"
+
+msgid "Sonuç"
+msgstr "Result"
+
+msgid "Yeniden Açıldı"
+msgstr "Reopened"
+
+msgid "Son Aktiviteler"
+msgstr "Recent Activity"
+
+msgid "Henüz aktivite yok."
+msgstr "No activity yet."
+
+msgid "Kullanıcıyı Düzenle"
+msgstr "Edit User"
+
+msgid "Yeni Kullanıcı Ekle"
+msgstr "Add New User"
+
+msgid "kullanici_adi"
+msgstr "username"
+
+msgid "Adı"
+msgstr "First Name"
+
+msgid "Soyadı"
+msgstr "Last Name"
+
+msgid "Departman seçin..."
+msgstr "Select a department..."
+
+msgid "Aktif Kullanıcı"
+msgstr "Active User"
+
+msgid "Kullanıcılar"
+msgstr "Users"
+
+#, python-format
+msgid "%(n)s pending approval"
+msgstr "%(n)s pending approval"
+
+msgid "Ara"
+msgstr "Search"
+
+msgid "Kullanıcı adı, ad, soyad veya e-posta..."
+msgstr "Username, first name, last name or email..."
+
+msgid "Tümü"
+msgstr "All"
+
+msgid "— Atanmamış —"
+msgstr "— Unassigned —"
+
+msgid "Pasif (onay bekliyor / deaktif)"
+msgstr "Inactive (pending approval / deactivated)"
+
+msgid "Sıralama"
+msgstr "Sort"
+
+msgid "Kullanıcı Adı (A-Z)"
+msgstr "Username (A-Z)"
+
+msgid "Kullanıcı Adı (Z-A)"
+msgstr "Username (Z-A)"
+
+msgid "Ad (A-Z)"
+msgstr "Name (A-Z)"
+
+msgid "Ad (Z-A)"
+msgstr "Name (Z-A)"
+
+msgid "Filtrele"
+msgstr "Filter"
+
+msgid "Temizle"
+msgstr "Clear"
+
+msgid "Toplu İşlem"
+msgstr "Bulk Action"
+
+msgid "— İşlem seçin —"
+msgstr "— Select an action —"
+
+msgid "Onayla (aktif et)"
+msgstr "Approve (activate)"
+
+msgid "Deaktif et"
+msgstr "Deactivate"
+
+msgid "Uygula"
+msgstr "Apply"
+
+msgid "kullanıcı seçili"
+msgstr "user(s) selected"
+
+msgid "Tümünü seç"
+msgstr "Select all"
+
+msgid "Henüz kullanıcı bulunmuyor."
+msgstr "No users yet."
+
+msgid "Bildirim Detayı"
+msgstr "Notification Detail"
+
+msgid "Tarih"
+msgstr "Date"
+
+msgid "Okundu"
+msgstr "Read"
+
+msgid "Okunmadı"
+msgstr "Unread"
+
+msgid "İlgili Bilet"
+msgstr "Related Ticket"
+
+msgid "Bilete Git"
+msgstr "Go to Ticket"
+
+msgid "Bu bildirimi silmek istediğinize emin misiniz?"
+msgstr "Are you sure you want to delete this notification?"
+
+msgid "Bildirimlere Dön"
+msgstr "Back to Notifications"
+
+msgid "Bildirimler"
+msgstr "Notifications"
+
+msgid "Tümünü Okundu İşaretle"
+msgstr "Mark all as read"
+
+#, python-format
+msgid "Ticket #%(pk)s"
+msgstr "Ticket #%(pk)s"
+
+msgid "Detay"
+msgstr "Detail"
+
+msgid "Okundu işaretle"
+msgstr "Mark as read"
+
+msgid "Henüz bildiriminiz bulunmuyor."
+msgstr "You have no notifications yet."
+
+msgid "Raporlar"
+msgstr "Reports"
+
+#, fuzzy
+#| msgid "Raporlar ve İstatistikler"
+msgid "Raporlar ve Analitik"
+msgstr "Reports & Statistics"
+
+msgid "Dışa Aktar"
+msgstr "Export"
+
+msgid "Başlangıç"
+msgstr "Start"
+
+msgid "Bitiş"
+msgstr "End"
+
+msgid "Açan"
+msgstr "Requester"
+
+msgid "Üstlenen"
+msgstr "Assignee"
+
+msgid "Etiket"
+msgstr "Tag"
+
+msgid "Öncelik"
+msgstr "Priority"
+
+msgid "Trend"
+msgstr ""
+
+msgid "Sıfırla"
+msgstr ""
+
+msgid "Trend Uyarısı:"
+msgstr "Trend Alert:"
+
+#, fuzzy
+#| msgid "Son 7 günde aşağıdaki kategorilerde belirgin artış tespit edildi."
+msgid "Son 7 günde aşağıdaki kategorilerde belirgin artış var."
+msgstr ""
+"A significant increase was detected in the following categories over the "
+"last 7 days."
+
+#, python-format
+msgid "son 7 günde %(c)s bilet (önceki hafta sıfır) — yeni trend."
+msgstr ""
+
+#, python-format
+msgid "son 7 günde %(c)s bilet, önceki hafta %(p)s"
+msgstr ""
+
+msgid "artış"
+msgstr ""
+
+msgid "Genel"
+msgstr ""
+
+#, fuzzy
+#| msgid "Yeni Bilet"
+msgid "Giden Bilet"
+msgstr "New Ticket"
+
+#, fuzzy
+#| msgid "Departman Karşılaştırması"
+msgid "Departman Karşılaştırma"
+msgstr "Department Comparison"
+
+msgid "Açık"
+msgstr "Open"
+
+msgid "İşlemde"
+msgstr "In Progress"
+
+msgid "Çözüldü"
+msgstr "Resolved"
+
+#, fuzzy
+#| msgid "Kapalı"
+msgid "Kapandı"
+msgstr "Closed"
+
+msgid "Eskalasyon"
+msgstr ""
+
+msgid "SLA Uyumu"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(n)s bilet"
+msgid "%(n)s biletinde uyumlu"
+msgstr "%(n)s tickets"
+
+#, fuzzy, python-format
+#| msgid "%(n)s bilet"
+msgid "%(n)s ihlal"
+msgstr "%(n)s tickets"
+
+#, fuzzy
+#| msgid "Kapalı bilet yok"
+msgid "Henüz kapanmış bilet yok"
+msgstr "No closed tickets"
+
+msgid "Tekrar Açılma Oranı"
+msgstr ""
+
+#, python-format
+msgid "%(n)s bilet en az 1 kez reddedildi"
+msgstr ""
+
+msgid "Veri yok"
+msgstr "No data"
+
+msgid "Memnuniyet (CSAT)"
+msgstr ""
+
+#, python-format
+msgid "%(n)s değerlendirme"
+msgstr ""
+
+#, fuzzy
+#| msgid "Henüz talebiniz yok"
+msgid "Henüz puan yok"
+msgstr "You have no requests yet"
+
+#, fuzzy
+#| msgid "Aylık Bilet Trendi"
+msgid "Açılan vs Kapanan Bilet Trendi"
+msgstr "Monthly Ticket Trend"
+
+msgid "Durum Dağılımı"
+msgstr "Status Distribution"
+
+msgid "En Yüksek Memnuniyet (CSAT)"
+msgstr ""
+
+msgid "En Yüksek Tekrar Açılma"
+msgstr ""
+
+msgid "Tekrar açılma kaydı yok"
+msgstr ""
+
+#, fuzzy
+#| msgid "Personel İş Yükü"
+msgid "Personel İş Yükü ve Performans"
+msgstr "Agent Workload"
+
+#, python-format
+msgid "Reopen %%"
+msgstr ""
+
+msgid "Ort. Çözüm"
+msgstr "Avg. Resolution"
+
+#, python-format
+msgid "SLA %%"
+msgstr ""
+
+msgid "CSAT"
+msgstr ""
+
+msgid "saat"
+msgstr ""
+
+msgid "Personel × Kategori Karnesi (En Yoğun 30 Hücre)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Üye Sayısı"
+msgid "Bilet Sayısı"
+msgstr "Number of Members"
+
+#, fuzzy
+#| msgid "Çözüm Süresi"
+msgid "Ort. Çözüm Süresi"
+msgstr "Resolution Time"
+
+msgid "En Çok Talep Alan Kategoriler"
+msgstr "Most Requested Categories"
+
+#, fuzzy
+#| msgid "Biletler"
+msgid "Bilet"
+msgstr "Tickets"
+
+msgid "SLA Uyum"
+msgstr ""
+
+#, fuzzy
+#| msgid "Kategori Sil"
+msgid "Kategori Yoğunluğu"
+msgstr "Delete Category"
+
+msgid "Hangi Departman Hangi Kategoride Talep Açıyor"
+msgstr ""
+
+msgid ""
+"Eğitim ihtiyacını tespit etmek için: bir departmanın çalışanlarının en sık "
+"başvurduğu konu başlıkları."
+msgstr ""
+
+#, fuzzy
+#| msgid "Yeni Departman"
+msgid "Açan Departman"
+msgstr "New Department"
+
+#, fuzzy
+#| msgid "Yeni Departman"
+msgid "Hedef Departman"
+msgstr "New Department"
+
+#, fuzzy
+#| msgid "En Çok Talep Alan Kategoriler"
+msgid "En Çok Talep Açan Kullanıcılar"
+msgstr "Most Requested Categories"
+
+msgid "Departman Bilet Dağılımı (Stacked)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Departman Karşılaştırması"
+msgid "Departman Performans Karşılaştırması"
+msgstr "Department Comparison"
+
+msgid "Bilet Raporu"
+msgstr "Ticket Report"
+
+msgid "Kapalı"
+msgstr "Closed"
+
+msgid "Etiketler"
+msgstr "Tags"
+
+msgid "Talep Sahibi"
+msgstr "Requester"
+
+msgid "Erişim Engellendi"
+msgstr "Access Denied"
+
+msgid "Bu sayfaya erişim yetkiniz bulunmamaktadır."
+msgstr "You do not have permission to access this page."
+
+msgid "Yetkili olduğunuzu düşünüyorsanız sistem yöneticisiyle iletişime geçin."
+msgstr ""
+"If you believe you should have access, please contact your system "
+"administrator."
+
+msgid "Ana Sayfa"
+msgstr "Home"
+
+msgid "Geri Dön"
+msgstr "Go Back"
+
+msgid "404 — Sayfa Bulunamadı"
+msgstr "404 — Page Not Found"
+
+msgid "Sayfa Bulunamadı"
+msgstr "Page Not Found"
+
+msgid "Aradığınız sayfa mevcut değil veya taşınmış olabilir."
+msgstr "The page you are looking for does not exist or has been moved."
+
+msgid "Adres çubuğunu kontrol edin ya da ana sayfaya dönün."
+msgstr "Check the URL or return to the home page."
+
+msgid "500 — Sunucu Hatası"
+msgstr "500 — Server Error"
+
+msgid "Sunucu Hatası"
+msgstr "Server Error"
+
+msgid "Beklenmeyen bir hata oluştu."
+msgstr "An unexpected error occurred."
+
+msgid ""
+"Lütfen daha sonra tekrar deneyin veya sistem yöneticisiyle iletişime geçin."
+msgstr "Please try again later or contact the system administrator."
+
+msgid "Biletler"
+msgstr "Tickets"
+
+msgid "Departmanım"
+msgstr "My Department"
+
+msgid "İşlem Geçmişi"
+msgstr "Audit Log"
+
+msgid "Ayarlar"
+msgstr "Settings"
+
+msgid "Dil"
 msgstr "Language"
 
-msgid "Tema Değiştir"
-msgstr "Toggle Theme"
+msgid "Tema"
+msgstr "Theme"
+
+msgid "Çıkış"
+msgstr "Logout"
 
 msgid "Kurumsal Talep Yönetim Sistemi"
 msgstr "Enterprise Service Management System"
 
 msgid "Tüm hakları saklıdır."
 msgstr "All rights reserved."
+
+#, python-format
+msgid "Hoş geldiniz, %(name)s"
+msgstr "Welcome, %(name)s"
+
+msgid "Çözüldü (Onayım Bekleniyor)"
+msgstr ""
+
+msgid "Sizin Yanıtınızı Bekliyor"
+msgstr ""
+
+msgid ""
+"Aşağıdaki biletler için onay vermeniz veya memnuniyet puanı bırakmanız "
+"bekleniyor."
+msgstr ""
+
+#, fuzzy
+#| msgid "Çözüm Onayı"
+msgid "Çözüm onayı bekliyor"
+msgstr "Resolution Confirmation"
+
+msgid "Memnuniyet puanı bekliyor"
+msgstr ""
+
+msgid "Puanla"
+msgstr ""
+
+msgid "Son Taleplerim"
+msgstr "My Recent Requests"
+
+msgid "Henüz talebiniz yok"
+msgstr "You have no requests yet"
+
+msgid "Yeni Bilet Oluştur"
+msgstr "Create New Ticket"
+
+msgid "Bekleyen Biletler"
+msgstr "Pending Tickets"
+
+msgid "İşlemdeki"
+msgstr "In Progress"
+
+msgid "Üstlendiğim"
+msgstr "Assigned to Me"
+
+msgid "Üstlendiğim Biletler"
+msgstr "Tickets Assigned to Me"
+
+msgid "Üstlendiğiniz bilet yok"
+msgstr "No tickets assigned to you"
+
+msgid "Bekleyen Biletler (Havuz)"
+msgstr "Pending Tickets (Pool)"
+
+msgid "Bekleyen bilet yok"
+msgstr "No pending tickets"
+
+msgid "Geçmişim (Kapalılar)"
+msgstr "My History (Closed)"
+
+msgid "Geçmiş biletiniz yok"
+msgstr "No history yet"
+
+msgid "Haftalık Kapanış"
+msgstr "Weekly Closures"
+
+msgid "Hafta"
+msgstr "Week"
+
+msgid "Kapanan"
+msgstr "Closed"
+
+msgid "Personel İş Yükü"
+msgstr "Agent Workload"
+
+msgid "Aktif Bilet"
+msgstr "Active Tickets"
+
+msgid "Personel bulunamadı"
+msgstr "No agents found"
+
+msgid "Son Biletler"
+msgstr "Recent Tickets"
+
+msgid "Bilet yok"
+msgstr "No tickets"
+
+msgid "Departman Özeti"
+msgstr "Department Summary"
+
+msgid "Departman yok"
+msgstr "No departments"
+
+msgid "Son Biletler (Sistem Geneli)"
+msgstr "Recent Tickets (System-wide)"
+
+msgid "Detaylı Raporlar"
+msgstr "Detailed Reports"
+
+#, python-format
+msgid "%(counter)s Onay Bekleyen Kullanıcı"
+msgid_plural "%(counter)s Onay Bekleyen Kullanıcı"
+msgstr[0] "%(counter)s user pending approval"
+msgstr[1] "%(counter)s users pending approval"
+
+msgid "Son Bildirimler"
+msgstr "Recent Notifications"
+
+msgid "Tüm bildirimler"
+msgstr "All notifications"
+
+msgid "Acil"
+msgstr "Urgent"
+
+msgid "Yüksek"
+msgstr "High"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Düşük"
+msgstr "Low"
+
+msgid "SLA aşıldı"
+msgstr "SLA exceeded"
+
+msgid "Geçmiş"
+msgstr "History"
+
+#, python-format
+msgid "Total %(n)s records"
+msgstr "Total %(n)s records"
+
+msgid "Kullanıcı"
+msgstr "User"
+
+msgid "— Tümü —"
+msgstr "— All —"
+
+msgid "Filtreleri Temizle"
+msgstr "Clear Filters"
+
+msgid "Aksiyon"
+msgstr "Action"
+
+msgid "Sistem / anonim"
+msgstr "System / anonymous"
+
+msgid "Bu filtrelere uygun kayıt bulunamadı."
+msgstr "No records match these filters."
+
+msgid "Kanban Tahtası"
+msgstr "Kanban Board"
+
+msgid "Liste Görünümü"
+msgstr "List View"
+
+msgid "Yeni Bilet"
+msgstr "New Ticket"
+
+msgid "Açık bilet yok"
+msgstr "No open tickets"
+
+msgid "İşlemde bilet yok"
+msgstr "No tickets in progress"
+
+msgid "(onay)"
+msgstr ""
+
+msgid "Çözüldü bilet yok"
+msgstr "No resolved tickets"
+
+msgid "gün"
+msgstr ""
+
+#, fuzzy
+#| msgid "Kapalı bilet yok"
+msgid "Kapanmış bilet yok"
+msgstr "No closed tickets"
+
+#, fuzzy
+#| msgid "Tümünü Okundu İşaretle"
+msgid "Çözüldü Olarak İşaretle"
+msgstr "Mark all as read"
+
+msgid ""
+"Bu nihai kapanma değildir. Talep sahibi onayladığında veya 3 gün geçtiğinde "
+"otomatik kapanır."
+msgstr ""
+
+msgid "Çözüm Notu"
+msgstr "Resolution Note"
+
+msgid "Sorunu nasıl çözdüğünüzü açıklayın..."
+msgstr "Describe how you resolved the issue..."
+
+#, fuzzy
+#| msgid "Çözüm Notu"
+msgid "Çözüm notu zorunludur."
+msgstr "Resolution Note"
+
+msgid "Hata oluştu."
+msgstr "An error occurred."
+
+msgid "Sunucu hatası:"
+msgstr "Server error:"
+
+msgid "Etiketi Sil"
+msgstr "Delete Tag"
+
+#, python-format
+msgid "Are you sure you want to delete tag <strong>\"%(name)s\"</strong>?"
+msgstr "Are you sure you want to delete tag <strong>\"%(name)s\"</strong>?"
+
+msgid "Bu etiket kullanıldığı biletlerden kaldırılacaktır."
+msgstr "This tag will be removed from any tickets using it."
+
+msgid "Vazgeç"
+msgstr "Cancel"
+
+#, python-format
+msgid "Edit Tag: %(name)s"
+msgstr "Edit Tag: %(name)s"
+
+msgid "Yeni Etiket Oluştur"
+msgstr "Create New Tag"
+
+msgid "Etiket Adı"
+msgstr "Tag Name"
+
+msgid "Renk"
+msgstr "Color"
+
+msgid "Önizleme"
+msgstr "Preview"
+
+msgid "Hex format: #RRGGBB"
+msgstr "Hex format: #RRGGBB"
+
+msgid "Güncelle"
+msgstr "Update"
+
+msgid "Oluştur"
+msgstr "Create"
+
+msgid "Yeni Etiket"
+msgstr "New Tag"
+
+msgid "Renk Kodu"
+msgstr "Color Code"
+
+msgid "Henüz etiket bulunmuyor."
+msgstr "No tags yet."
+
+#, python-format
+msgid "Ticket #%(pk)s · %(created)s"
+msgstr "Ticket #%(pk)s · %(created)s"
+
+msgid "Mesaj"
+msgstr "Message"
+
+msgid "Dosya Ekleri"
+msgstr "Attachments"
+
+msgid "Bu eki silmek istediğinize emin misiniz?"
+msgstr "Are you sure you want to delete this attachment?"
+
+#, python-format
+msgid "Çözüldü olarak işaretlendi: %(d)s"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Closed: %(closed)s"
+msgid "Kapandı: %(closed)s"
+msgstr "Closed: %(closed)s"
+
+msgid "Bilet Eskalasyona Alındı"
+msgstr ""
+
+msgid ""
+"Bu bilet 3 kez reddedildiği için otomatik olarak eskalasyona alındı. "
+"Yönetici müdahalesi gerekiyor."
+msgstr ""
+
+msgid "Son Red Gerekçesi:"
+msgstr ""
+
+#, python-format
+msgid "Talep sahibi çözümü reddetti (%(n)s/2)"
+msgstr ""
+
+msgid "Gerekçe:"
+msgstr ""
+
+msgid "Sorununuz Çözüldü mü?"
+msgstr "Was your issue resolved?"
+
+msgid ""
+"Destek ekibimiz talebinizi çözdü olarak işaretledi. 3 gün içinde yanıt "
+"verilmezse otomatik olarak kapanır."
+msgstr ""
+
+#, python-format
+msgid ""
+"Bu bilet daha önce %(n)s kez reddedildi. 3. kez reddedilirse eskalasyona "
+"alınır."
+msgstr ""
+
+#, fuzzy
+#| msgid "Başarılı"
+msgid "Evet, Başarılı"
+msgstr "Successful"
+
+#, fuzzy
+#| msgid "Başarılı"
+msgid "Hayır, Başarısız"
+msgstr "Successful"
+
+#, fuzzy
+#| msgid "Başarılı"
+msgid "Neden başarısız?"
+msgstr "Successful"
+
+#, fuzzy
+#| msgid "Sorunu nasıl çözdüğünüzü açıklayın..."
+msgid "Sorunun neden çözülmediğini detaylı açıklayın..."
+msgstr "Describe how you resolved the issue..."
+
+#, fuzzy
+#| msgid "Gönder"
+msgid "Reddi Gönder"
+msgstr "Send"
+
+msgid "Hizmetimizi Değerlendirin"
+msgstr ""
+
+msgid ""
+"Talebinize verilen yanıtla ilgili memnuniyetinizi 1 (çok kötü) ile 5 "
+"(mükemmel) arasında puanlayın."
+msgstr ""
+
+msgid "Gönder"
+msgstr "Send"
+
+#, python-format
+msgid "Talep sahibi memnuniyet puanı: %(n)s/5"
+msgstr ""
+
+msgid "Bu bilet henüz üstlenilmemiş. Üzerinize almak ister misiniz?"
+msgstr "This ticket has not been picked up yet. Would you like to take it?"
+
+msgid "Bileti Üstlen"
+msgstr "Take Ticket"
+
+msgid "Personel Atama"
+msgstr "Assign Personnel"
+
+msgid ""
+"Bu departmandaki bir personeli bilete atayın. Atama yapıldığında bilet "
+"'İşlemde' durumuna geçer."
+msgstr ""
+"Assign an agent from this department to the ticket. When assigned, the "
+"ticket moves to 'In Progress' status."
+
+msgid "— Atamayı kaldır —"
+msgstr "— Unassign —"
+
+msgid "Bu departmanda atanabilir personel rolünde aktif kullanıcı bulunmuyor."
+msgstr "There are no active Agent-role users in this department to assign."
+
+msgid ""
+"Bu işlem nihai kapanma DEĞİLDİR. Talep sahibi onaylayana kadar bilet "
+"'Çözüldü' durumunda bekler. 3 gün boyunca yanıt verilmezse otomatik kapanır."
+msgstr ""
+
+msgid "Mesajlar"
+msgstr "Messages"
+
+msgid "Silinmiş kullanıcı"
+msgstr "Deleted user"
+
+msgid "Henüz mesaj yok. İlk mesajı siz gönderin."
+msgstr "No messages yet. Send the first one."
+
+msgid "Mesajınızı yazın..."
+msgstr "Write your message..."
+
+msgid "Dosya ekle"
+msgstr "Attach file"
+
+msgid "Dosya Ekle"
+msgstr "Attach File"
+
+msgid "Bilet Geçmişi"
+msgstr "Ticket History"
+
+msgid "Sistem"
+msgstr "System"
+
+msgid "Üstlenen Personel"
+msgstr "Assigned Agent"
+
+msgid "Henüz atanmadı"
+msgstr "Not assigned yet"
+
+#, fuzzy
+#| msgid "Çözüldü"
+msgid "Çözüldü Tarihi"
+msgstr "Resolved"
+
+#, python-format
+msgid "Otomatik kapanış: %(d)s"
+msgstr ""
+
+#, fuzzy
+#| msgid "Kayıt Tarihi"
+msgid "Eskalasyon Tarihi"
+msgstr "Registration Date"
+
+#, fuzzy
+#| msgid "Yeniden Açılan"
+msgid "Yeniden Açılma"
+msgstr "Reopened"
+
+#, python-format
+msgid "%(n)s/2"
+msgstr ""
+
+msgid "Üzerinde Çalışılan Süre"
+msgstr "Time Worked On"
+
+msgid "devam ediyor"
+msgstr "in progress"
+
+msgid "SLA Hedefi"
+msgstr "SLA Target"
+
+msgid "Aşıldı"
+msgstr "Exceeded"
+
+msgid "kullanıldı"
+msgstr "used"
+
+msgid "Çözüm Onayı"
+msgstr "Resolution Confirmation"
+
+msgid "Bekleniyor"
+msgstr "Pending"
+
+msgid "Onaylandı"
+msgstr "Confirmed"
+
+msgid "Memnuniyet Puanı"
+msgstr ""
+
+msgid "Transfer Et"
+msgstr "Transfer"
+
+msgid "Bu bileti silmek istediğinize emin misiniz?"
+msgstr "Are you sure you want to delete this ticket?"
+
+msgid "Bileti Sil"
+msgstr "Delete Ticket"
+
+#, fuzzy
+#| msgid "Bu bileti yeniden açmak istediğinize emin misiniz?"
+msgid ""
+"Bu bileti yeniden açmak istediğinize emin misiniz? Kilit kalkacak ve "
+"sayaçlar sıfırlanacak."
+msgstr "Are you sure you want to reopen this ticket?"
+
+#, fuzzy
+#| msgid "Yeniden Aç"
+msgid "Yeniden Aç (Admin)"
+msgstr "Reopen"
+
+msgid "Bilet Listesine Dön"
+msgstr "Back to Ticket List"
+
+#, python-format
+msgid "Edit Ticket #%(pk)s"
+msgstr "Edit Ticket #%(pk)s"
+
+msgid "Talebin kısa başlığı"
+msgstr "Short title of the request"
+
+msgid "Kategori seçin..."
+msgstr "Select a category..."
+
+msgid "Önce departman seçin..."
+msgstr "Select a department first..."
+
+msgid "Henüz etiket tanımlanmamış (admin panelinden ekleyebilirsiniz)."
+msgstr "No tags defined yet (you can add them from the admin panel)."
+
+msgid "Talebinizi detaylı açıklayın..."
+msgstr "Describe your request in detail..."
+
+msgid "(opsiyonel — birden fazla dosya seçebilirsiniz)"
+msgstr "(optional — you can select multiple files)"
+
+msgid "Mevcut ekler:"
+msgstr "Current attachments:"
+
+msgid "PDF, JPG, PNG, DOCX. Tek dosya için max 10 MB."
+msgstr "PDF, JPG, PNG, DOCX. Max 10 MB per file."
+
+#, fuzzy
+#| msgid "Bekleniyor"
+msgid "Yükleniyor..."
+msgstr "Pending"
+
+#, fuzzy
+#| msgid "Bu departmanda henüz kategori bulunmuyor."
+msgid "Bu departmanda kategori yok"
+msgstr "No categories yet in this department."
+
+msgid "Kategoriler yüklenemedi"
+msgstr "Could not load categories"
+
+msgid "Kanban"
+msgstr "Kanban"
+
+msgid "Etiketleri Yönet"
+msgstr "Manage Tags"
+
+msgid "En Yeni"
+msgstr "Newest"
+
+msgid "En Eski"
+msgstr "Oldest"
+
+msgid "Konu (A-Z)"
+msgstr "Subject (A-Z)"
+
+msgid "SLA"
+msgstr "SLA"
+
+msgid "Sadece SLA aşan"
+msgstr "Only SLA-exceeded"
+
+msgid "Çözüldü olarak işaretle"
+msgstr ""
+
+msgid "Önceliği Değiştir"
+msgstr "Change Priority"
+
+msgid "bilet seçili"
+msgstr "ticket(s) selected"
+
+msgid "Oluşturulma Tarihi"
+msgstr "Created At"
+
+msgid "Kapatılma Tarihi"
+msgstr "Closed At"
+
+msgid "Çözüm Süresi"
+msgstr "Resolution Time"
+
+msgid "SLA hedefi aşıldı"
+msgstr "SLA target exceeded"
+
+msgid "Henüz bilet bulunmuyor."
+msgstr "No tickets yet."
+
+msgid "İlk bileti oluştur"
+msgstr "Create the first ticket"
+
+msgid "Lütfen bir işlem seçin."
+msgstr "Please select an action."
+
+msgid "Lütfen en az bir bilet seçin."
+msgstr "Please select at least one ticket."
+
+msgid "çözüldü olarak işaretlemek"
+msgstr "mark as resolved"
+
+msgid "yeniden açmak"
+msgstr "reopen"
+
+msgid "silmek"
+msgstr "delete"
+
+msgid "önceliğini"
+msgstr "set its priority to"
+
+msgid "yapmak"
+msgstr ""
+
+msgid "bileti"
+msgstr "ticket(s)"
+
+msgid "istediğinize emin misiniz?"
+msgstr "are you sure you want to do this?"
+
+msgid "Bileti Transfer Et"
+msgstr "Transfer Ticket"
+
+msgid "Mevcut Departman:"
+msgstr "Current Department:"
+
+msgid "Yeni Departman"
+msgstr "New Department"
+
+msgid "Yeni Kategori"
+msgstr "New Category"
+
+#~ msgid "Yönetici:"
+#~ msgstr "Manager:"
+
+#, python-format
+#~ msgid "Created: %(d)s"
+#~ msgstr "Created: %(d)s"
+
+#~ msgid "Yönetici seçin..."
+#~ msgstr "Select a manager..."
+
+#~ msgid "Kayıt (En Yeni)"
+#~ msgstr "Newest"
+
+#~ msgid "Kayıt (En Eski)"
+#~ msgstr "Oldest"
+
+#~ msgid "Filtre aktif:"
+#~ msgstr "Filter active:"
+
+#~ msgid "Departman Performansı"
+#~ msgstr "Department Performance"
+
+#, python-format
+#~ msgid "%(h)s saat"
+#~ msgstr "%(h)s h"
+
+#~ msgid "Basarili"
+#~ msgstr "Success"
+
+#~ msgid "Basarisiz"
+#~ msgstr "Failure"
+
+#~ msgid "Ort. Cozum"
+#~ msgstr "Avg. Resolution"
+
+#~ msgid "Dil Seçimi"
+#~ msgstr "Language"
+
+#~ msgid "Tema Değiştir"
+#~ msgstr "Toggle Theme"
+
+#~ msgid "Giriş"
+#~ msgstr "Login"
+
+#~ msgid "Açık Taleplerim"
+#~ msgstr "My Open Requests"
+
+#~ msgid "Bileti Kapat"
+#~ msgstr "Close Ticket"
+
+#~ msgid "Kapat"
+#~ msgstr "Close"
+
+#~ msgid ""
+#~ "Destek ekibimiz talebinizi kapattı. Sorununuzun gerçekten çözüldüğünü "
+#~ "onaylıyor musunuz?"
+#~ msgstr ""
+#~ "Our support team has closed your request. Do you confirm your issue was "
+#~ "actually resolved?"
+
+#~ msgid "Evet, Çözüldü"
+#~ msgstr "Yes, Resolved"
+
+#~ msgid "Sorununuz çözülmedi mi? Biletiniz yeniden açılacak."
+#~ msgstr "Wasn't your issue resolved? Your ticket will be reopened."
+
+#~ msgid "Hayır, Çözülmedi"
+#~ msgstr "No, Not Resolved"
+
+#~ msgid "Talep sahibi sorununun çözüldüğünü onayladı."
+#~ msgstr "The requester confirmed the issue was resolved."
+
+#~ msgid "Reddedildi"
+#~ msgstr "Rejected"
