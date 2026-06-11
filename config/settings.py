@@ -184,8 +184,8 @@ REST_FRAMEWORK = {
 
 # drf-spectacular (OpenAPI/Swagger) Ayarları
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'ESMS API',
-    'DESCRIPTION': 'Kurumsal Talep Yönetim Sistemi REST API dokümantasyonu',
+    'TITLE': 'Dispatch API',
+    'DESCRIPTION': 'Dispatch REST API documentation',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SCHEMA_PATH_PREFIX': r'/api/v1',

@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% trans "Talep Yönetim Sistemi" %}{% endblock %}</title>
+    <title>{% block title %}Dispatch{% endblock %}</title>
 
     <!-- Inter font (modern dashboard tipografisi) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +21,7 @@
     <!-- Dark mode: sayfa yüklenmeden önce tercih uygula (flash önleme) -->
     <script>
         (function () {
-            const saved = localStorage.getItem('esms-theme');
+            const saved = localStorage.getItem('dispatch-theme');
             if (saved) {
                 document.documentElement.setAttribute('data-bs-theme', saved);
             } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -216,10 +216,10 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-6">
-                    <span class="text-muted">{% trans "Kurumsal Talep Yönetim Sistemi" %}</span>
+                    <span class="text-muted">Dispatch</span>
                 </div>
                 <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                    <small class="text-muted">&copy; 2026 ESMS. {% trans "Tüm hakları saklıdır." %}</small>
+                    <small class="text-muted">&copy; 2026 Dispatch. {% trans "Tüm hakları saklıdır." %}</small>
                 </div>
             </div>
         </div>
@@ -241,7 +241,7 @@
         // Tema uygula + sakla
         function applyTheme(theme) {
             document.documentElement.setAttribute('data-bs-theme', theme);
-            localStorage.setItem('esms-theme', theme);
+            localStorage.setItem('dispatch-theme', theme);
             syncThemeButtons(theme);
         }
 

@@ -341,7 +341,7 @@ class Command(BaseCommand):
             u, created = User.objects.get_or_create(
                 username=uname,
                 defaults={
-                    'email': f'{uname}@esms.local',
+                    'email': f'{uname}@dispatch.local',
                     'first_name': first_name, 'last_name': last_name,
                     'role': Role.MANAGER, 'department': dept, 'is_active': True,
                     'phone': f'05{random.randint(300000000, 599999999)}',
@@ -363,7 +363,7 @@ class Command(BaseCommand):
                 u, created = User.objects.get_or_create(
                     username=uname,
                     defaults={
-                        'email': f'{uname}@esms.local',
+                        'email': f'{uname}@dispatch.local',
                         'first_name': first_name, 'last_name': last_name,
                         'role': Role.AGENT, 'department': dept, 'is_active': True,
                         'phone': f'05{random.randint(300000000, 599999999)}',
@@ -384,7 +384,7 @@ class Command(BaseCommand):
             u, created = User.objects.get_or_create(
                 username=uname,
                 defaults={
-                    'email': f'{uname}@esms.local',
+                    'email': f'{uname}@dispatch.local',
                     'first_name': first_name, 'last_name': last_name,
                     'role': Role.EMPLOYEE,
                     'is_active': i > 1,  # ilk 2'si pasif (admin onayı bekliyor)

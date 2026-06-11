@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: ESMS 1.2\n"
+"Project-Id-Version: Dispatch 1.2\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-09 13:34+0300\n"
 "PO-Revision-Date: 2026-05-07\n"
@@ -275,11 +275,11 @@ msgstr "No departments yet."
 msgid "İlk departmanı ekle"
 msgstr "Add the first department"
 
-msgid "Giriş — Talep Yönetim Sistemi"
-msgstr "Login — Service Management System"
+msgid "Giriş — Dispatch"
+msgstr "Login — Dispatch"
 
-msgid "Talep Yönetim Sistemi"
-msgstr "Service Management System"
+msgid "Dispatch"
+msgstr "Dispatch"
 
 msgid "Devam etmek için giriş yapın"
 msgstr "Sign in to continue"
@@ -398,8 +398,8 @@ msgid "Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz
 msgstr ""
 "Are you sure you want to delete your account? This action cannot be undone."
 
-msgid "Kayıt Ol — Talep Yönetim Sistemi"
-msgstr "Register — Service Management System"
+msgid "Kayıt Ol — Dispatch"
+msgstr "Register — Dispatch"
 
 msgid "Yeni hesap oluşturun"
 msgstr "Create a new account"
@@ -996,8 +996,8 @@ msgstr "Theme"
 msgid "Çıkış"
 msgstr "Logout"
 
-msgid "Kurumsal Talep Yönetim Sistemi"
-msgstr "Enterprise Service Management System"
+msgid "Dispatch"
+msgstr "Dispatch"
 
 msgid "Tüm hakları saklıdır."
 msgstr "All rights reserved."
