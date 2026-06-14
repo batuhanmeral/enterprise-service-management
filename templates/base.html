@@ -34,15 +34,15 @@
 <body class="d-flex flex-column min-vh-100">
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg">
         <div class="container">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+                <i class="bi bi-list"></i>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:home' %}">
+                        <a class="nav-link" href="{% url 'home' %}">
                             <i class="bi bi-house me-1"></i>{% trans "Ana Sayfa" %}
                         </a>
                     </li>
@@ -114,15 +114,9 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
 
-                            <!-- Profil -->
-                            <li>
-                                <a class="dropdown-item" href="{% url 'identity:user_detail' user.id %}">
-                                    <i class="bi bi-person me-2"></i>{% trans "Profil" %}
-                                </a>
-                            </li>
                             <li>
                                 <a class="dropdown-item" href="{% url 'identity:profile' %}">
-                                    <i class="bi bi-gear me-2"></i>{% trans "Ayarlar" %}
+                                    <i class="bi bi-person me-2"></i>{% trans "Profilim" %}
                                 </a>
                             </li>
 
@@ -212,16 +206,9 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-dark text-light py-4 mt-auto">
-        <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <span class="text-muted">Dispatch</span>
-                </div>
-                <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                    <small class="text-muted">&copy; 2026 Dispatch. {% trans "Tüm hakları saklıdır." %}</small>
-                </div>
-            </div>
+    <footer class="footer py-4 mt-auto">
+        <div class="container text-center">
+            <small class="text-muted">&copy; 2026 Dispatch. {% trans "Tüm hakları saklıdır." %}</small>
         </div>
     </footer>
 

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Hesap Geçici Olarak Kilitlendi" %} — Dispatch{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-icon">
+        <i class="bi bi-shield-lock-fill"></i>
+    </div>
+    <h2 class="h4 mb-3">{% trans "Çok Fazla Başarısız Giriş Denemesi" %}</h2>
+    <p class="text-muted mb-4">
+        {% trans "Güvenlik nedeniyle hesabınız geçici olarak kilitlendi." %}<br>
+        {% trans "Lütfen bir süre bekleyip tekrar deneyin veya sistem yöneticinizle iletişime geçin." %}
+    </p>
+    <div class="d-flex justify-content-center gap-2">
+        <a href="{% url 'identity:login' %}" class="btn btn-dark">
+            <i class="bi bi-box-arrow-in-right me-1"></i>{% trans "Giriş Sayfası" %}
+        </a>
+    </div>
+</div>
+{% endblock %}

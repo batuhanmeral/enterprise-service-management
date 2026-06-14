@@ -9,7 +9,6 @@ from .validators import (
 )
 
 
-# Kullanıcı rollerini tanımlayan enumeration sınıfı
 class Role(models.TextChoices):
     EMPLOYEE = 'EMPLOYEE', 'Çalışan'
     AGENT = 'AGENT', 'Personel'
@@ -17,10 +16,8 @@ class Role(models.TextChoices):
     ADMIN = 'ADMIN', 'Admin'
 
 
-# Django AbstractUser genişletilmiş kullanıcı modeli
 class User(AbstractUser):
 
-    # Kullanıcının profil fotoğrafı (max 2 MB, JPG/PNG/WEBP)
     avatar = models.ImageField(
         upload_to='avatars/',
         blank=True,
@@ -33,7 +30,6 @@ class User(AbstractUser):
         ],
     )
 
-    # Kullanıcının telefon numarası
     phone = models.CharField(
         max_length=20,
         blank=True,
@@ -41,7 +37,6 @@ class User(AbstractUser):
         verbose_name='Telefon Numarası',
     )
 
-    # Kullanıcının rolü(yetki seviyesi)
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
@@ -49,17 +44,15 @@ class User(AbstractUser):
         verbose_name='Rol',
     )
 
-    # Kullanıcının bağlı olduğu departman
     department = models.ForeignKey(
         'departments.Department',
-        on_delete=models.SET_NULL, # Departman silinse bile kullanıcı sistemde kalır
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='personnel',
         verbose_name='Departman',
     )
 
-    # Modelin admin paneli ve veritabanı davranışlarını belirleyen meta-veri sınıfı
     class Meta:
         verbose_name = 'Kullanıcı'
         verbose_name_plural = 'Kullanıcılar'
@@ -68,17 +61,16 @@ class User(AbstractUser):
             models.Index(fields=['role', 'department', 'is_active'], name='user_role_dept_active_idx'),
         ]
 
-    # Model objesinin sistemde metin olarak nasıl temsil edileceğini belirleyen fonksiyon
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"
 
-    # ADMIN rolü Django admin paneline (is_staff) erişim ima eder; senkronize tut.
     def save(self, *args, **kwargs):
+        if self.is_superuser and self.role != Role.ADMIN:
+            self.role = Role.ADMIN
         if self.role == Role.ADMIN and not self.is_staff:
             self.is_staff = True
         super().save(*args, **kwargs)
 
-    # Kullanıcı rolünü kontrol eden yardımcı property'ler
     @property
     def is_employee(self):
         return self.role == Role.EMPLOYEE
@@ -96,10 +88,7 @@ class User(AbstractUser):
         return self.role == Role.ADMIN
 
 
-# Sistem genelinde tüm aksiyonları kaydeden audit log modeli.
-# Bilet/Kullanıcı/Departman/Kimlik doğrulama gibi farklı kategorilerdeki olayları tutar.
 class AuditLog(models.Model):
-    # Olay kategorileri (ENUM sınıfı) 
     class Category(models.TextChoices):
         TICKET = 'TICKET', 'Bilet'
         USER = 'USER', 'Kullanıcı'

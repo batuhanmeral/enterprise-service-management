@@ -2,17 +2,14 @@ import os
 from django.core.exceptions import ValidationError
 
 
-# Avatar için izinli görsel uzantıları
 AVATAR_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
 
-# Avatar maksimum boyutu: 2 MB
 AVATAR_MAX_FILE_SIZE = 2 * 1024 * 1024
 
-# Bilinen görsel imzaları (magic bytes)
 _IMAGE_SIGNATURES = {
     b'\x89PNG\r\n\x1a\n': '.png',
     b'\xff\xd8\xff': '.jpg',
-    b'RIFF': '.webp',  # RIFF....WEBP — tam doğrulama aşağıda
+    b'RIFF': '.webp',
 }
 
 
@@ -35,13 +32,11 @@ def validate_avatar_size(value):
 
 
 def validate_avatar_content(value):
-    """Görselin gerçek içerik tipini magic bytes ile doğrular."""
     header = value.read(12)
     value.seek(0)
 
     ext = os.path.splitext(value.name)[1].lower()
 
-    # WEBP özel: 'RIFF' + 4 byte size + 'WEBP'
     if header.startswith(b'RIFF') and header[8:12] == b'WEBP':
         if ext == '.webp':
             return

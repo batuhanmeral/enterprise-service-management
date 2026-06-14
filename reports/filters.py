@@ -1,14 +1,12 @@
 from urllib.parse import urlencode
 
 from django import forms
-from django.db.models import Q
 
 from departments.models import Department, Category
 from identity.models import User, Role
 from tickets.models import Status, Priority, Tag
 
 
-# Granularite seçenekleri: trend grafiğinde gün/hafta/ay bucket'ı için
 GRANULARITY_CHOICES = [
     ('day', 'Günlük'),
     ('week', 'Haftalık'),
@@ -17,11 +15,6 @@ GRANULARITY_CHOICES = [
 
 
 class ReportFilterForm(forms.Form):
-    """Rapor dashboard'unun global filtre formu.
-
-    Tüm panelleri aynı query string ile besler; drill-down link'leri için
-    `as_ticket_query()` ile mevcut TicketListView parametrelerine dönüştürülür.
-    """
 
     date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
     date_to = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
@@ -38,7 +31,6 @@ class ReportFilterForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.user = user
 
-        # Rol bazlı queryset kısıtlama
         if user is None or user.role == Role.ADMIN:
             self.fields['department'].queryset = Department.objects.order_by('name')
             self.fields['category'].queryset = (
@@ -55,7 +47,6 @@ class ReportFilterForm(forms.Form):
                 .order_by('department__name', 'first_name', 'last_name')
             )
         else:
-            # MANAGER: kendi departmanı ile sınırlı
             self.fields['department'].queryset = Department.objects.filter(pk=user.department_id)
             self.fields['department'].initial = user.department_id
             self.fields['department'].disabled = True
@@ -70,7 +61,6 @@ class ReportFilterForm(forms.Form):
 
         self.fields['tag'].queryset = Tag.objects.order_by('name')
 
-    # Form geçerli olmasa bile temiz bir cleaned dict döndürür
     def safe_cleaned(self):
         if not self.is_bound:
             return {}
@@ -79,10 +69,8 @@ class ReportFilterForm(forms.Form):
         return {}
 
     def apply(self, qs, user):
-        """Bilet queryset'ine rol kapsamı + form filtrelerini uygular."""
-        # Rol kapsamı (defansif) — manager kendi departmanı dışını göremez
         if user.role == Role.MANAGER:
-            qs = qs.filter(Q(department=user.department) | Q(sender__department=user.department))
+            qs = qs.filter(department=user.department)
         elif user.role != Role.ADMIN:
             qs = qs.none()
 
@@ -112,10 +100,6 @@ class ReportFilterForm(forms.Form):
         return data.get('granularity') or 'month'
 
     def as_ticket_query(self, **overrides):
-        """Drill-down için: TicketListView'ın anladığı query string'i üretir.
-
-        overrides ile panel başına ek filtre eklenebilir, örn. status='OPEN'.
-        """
         data = self.safe_cleaned()
         params = {}
         if data.get('date_from'):
@@ -136,7 +120,6 @@ class ReportFilterForm(forms.Form):
             params['priority'] = data['priority']
         if data.get('status'):
             params['status'] = data['status']
-        # overrides her zaman üstte kalır (panel başına özel filtreler)
         for k, v in overrides.items():
             if v in (None, ''):
                 params.pop(k, None)

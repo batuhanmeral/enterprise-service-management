@@ -23,7 +23,6 @@ class NotificationListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Okunmamış bildirim sayısını bağlama ekle
         context['unread_count'] = Notification.objects.filter(
             recipient=self.request.user,
             is_read=False,
@@ -44,7 +43,6 @@ class NotificationDetailView(LoginRequiredMixin, DetailView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        # Bildirimi görüntüleyince otomatik okundu işaretle
         obj.mark_as_read()
         return obj
 
@@ -54,7 +52,6 @@ class NotificationDetailView(LoginRequiredMixin, DetailView):
 def notification_mark_read_view(request, pk):
     notification = get_object_or_404(Notification, pk=pk)
 
-    # Yetki kontrolü: Sadece bildirimin alıcısı işaretleyebilir
     if notification.recipient != request.user:
         return HttpResponseForbidden('Bu bildirime erişim yetkiniz yok.')
 
@@ -82,7 +79,6 @@ def notification_mark_all_read_view(request):
 def notification_delete_view(request, pk):
     notification = get_object_or_404(Notification, pk=pk)
 
-    # Yetki kontrolü: Sadece bildirimin alıcısı silebilir
     if notification.recipient != request.user:
         return HttpResponseForbidden('Bu bildirime erişim yetkiniz yok.')
 

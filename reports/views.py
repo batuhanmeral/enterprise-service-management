@@ -20,7 +20,7 @@ from weasyprint import HTML
 from departments.models import Department
 from identity.models import Role, User
 from identity.views import ManagerOrAdminRequiredMixin
-from tickets.models import SLA_HOURS, Status, Ticket
+from tickets.models import Status, Ticket
 
 from .filters import ReportFilterForm
 
@@ -30,14 +30,12 @@ def _require_manager_or_admin(user):
     return user.is_authenticated and user.role in (Role.MANAGER, Role.ADMIN)
 
 
-# Trend granülarite → Trunc fonksiyonu eşlemesi
 _TRUNC_MAP = {
     'day': TruncDay,
     'week': TruncWeek,
     'month': TruncMonth,
 }
 
-# Trend label format
 _LABEL_FORMAT = {
     'day': '%d.%m',
     'week': '%d.%m',
@@ -57,13 +55,10 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         context['form'] = form
         context['is_admin'] = user.role == Role.ADMIN
 
-        # Filtre uygulanmış ana queryset
         ticket_qs = form.apply(Ticket.objects.all(), user)
 
-        # Drill-down link'leri için query string snapshot
         context['base_query'] = form.as_ticket_query()
 
-        # ── 1. Genel KPI'lar ─────────────────────────────────────────────
         status_counts = dict(
             ticket_qs.values_list('status').annotate(c=Count('id'))
         )
@@ -75,23 +70,38 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         context['closed_count'] = status_counts.get(Status.CLOSED, 0)
         context['escalated_count'] = status_counts.get(Status.ESCALATED, 0)
 
-        # ── 2. SLA Başarı/İhlal ──────────────────────────────────────────
-        # Öncelik bazlı eşiklere göre kapanmış biletleri sınıflandır.
-        thresholds = {p: timedelta(hours=h) for p, h in SLA_HOURS.items()}
         closed_qs = ticket_qs.filter(
             status=Status.CLOSED, closed_at__isnull=False
-        ).annotate(
-            _dur=ExpressionWrapper(
-                F('closed_at') - F('created_at'), output_field=DurationField()
-            ),
         )
         sla_total = 0
         sla_breach = 0
-        for row in closed_qs.values('priority', '_dur'):
+        dept_sla_total = defaultdict(int)
+        dept_sla_breach = defaultdict(int)
+        cat_sla_total = defaultdict(int)
+        cat_sla_breach = defaultdict(int)
+        agent_sla_total = defaultdict(int)
+        agent_sla_breach = defaultdict(int)
+        for row in closed_qs.values(
+            'closed_at', 'sla_due_at', 'department_id', 'category_id', 'assigned_to_id'
+        ):
+            breached = bool(row['sla_due_at'] and row['closed_at'] > row['sla_due_at'])
             sla_total += 1
-            limit = thresholds.get(row['priority'], timedelta(hours=72))
-            if row['_dur'] and row['_dur'] > limit:
+            if breached:
                 sla_breach += 1
+            did = row['department_id']
+            dept_sla_total[did] += 1
+            if breached:
+                dept_sla_breach[did] += 1
+            cid = row['category_id']
+            if cid is not None:
+                cat_sla_total[cid] += 1
+                if breached:
+                    cat_sla_breach[cid] += 1
+            aid = row['assigned_to_id']
+            if aid is not None:
+                agent_sla_total[aid] += 1
+                if breached:
+                    agent_sla_breach[aid] += 1
         sla_met = sla_total - sla_breach
         context['sla_total'] = sla_total
         context['sla_met'] = sla_met
@@ -100,14 +110,12 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             round(sla_met / sla_total * 100, 1) if sla_total else None
         )
 
-        # ── 3. Reopen Rate ───────────────────────────────────────────────
         reopened_count = ticket_qs.filter(reopen_count__gt=0).count()
         context['reopened_count'] = reopened_count
         context['reopen_rate_pct'] = (
             round(reopened_count / total * 100, 1) if total else None
         )
 
-        # ── 4. CSAT (ortalama + histogram) ───────────────────────────────
         csat_qs = ticket_qs.filter(status=Status.CLOSED, csat_rating__isnull=False)
         csat_count = csat_qs.count()
         csat_avg = csat_qs.aggregate(avg=Avg('csat_rating'))['avg']
@@ -118,7 +126,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         )
         context['csat_histogram'] = [csat_dist.get(i, 0) for i in range(1, 6)]
 
-        # ── 5. Açılan vs Kapanan Trend ───────────────────────────────────
         granularity = form.get_granularity()
         trend_labels, trend_opened, trend_closed = _build_trend(
             ticket_qs, granularity, form
@@ -128,16 +135,13 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         context['trend_closed'] = trend_closed
         context['granularity'] = granularity
 
-        # ── 6. Anomali tespiti (mevcut, korundu) ─────────────────────────
         context['anomalies'] = _detect_category_anomalies(ticket_qs)
 
-        # ── 7. Departman performansı ─────────────────────────────────────
         if user.role == Role.ADMIN:
             dept_qs = Department.objects.all()
         else:
             dept_qs = Department.objects.filter(pk=user.department_id)
 
-        # Per-departman bilet sayıları (filtre kapsamında)
         dept_status_rows = (
             ticket_qs.values('department_id')
             .annotate(
@@ -157,16 +161,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             )
         )
         dept_status_map = {r['department_id']: r for r in dept_status_rows}
-
-        # Per-departman SLA hesabı (Python'da, queryset üzerinden)
-        dept_sla_breach = defaultdict(int)
-        dept_sla_total = defaultdict(int)
-        for row in closed_qs.values('department_id', 'priority', '_dur'):
-            did = row['department_id']
-            dept_sla_total[did] += 1
-            limit = thresholds.get(row['priority'], timedelta(hours=72))
-            if row['_dur'] and row['_dur'] > limit:
-                dept_sla_breach[did] += 1
 
         departments = []
         for dept in dept_qs.order_by('name'):
@@ -193,14 +187,12 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             })
         context['departments'] = departments
 
-        # Departman karşılaştırma grafiği için diziler
         context['dept_names'] = [d['name'] for d in departments]
         context['dept_open'] = [d['open'] for d in departments]
         context['dept_in_progress'] = [d['in_progress'] for d in departments]
         context['dept_closed'] = [d['closed'] for d in departments]
         context['dept_escalated'] = [d['escalated'] for d in departments]
 
-        # ── 8. Top kategoriler ───────────────────────────────────────────
         top_cat_rows = (
             ticket_qs.filter(category__isnull=False)
             .values('category_id', 'category__name', 'category__department__name')
@@ -217,16 +209,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             for r in top_cat_rows
         ]
 
-        # Kategori SLA performansı (top 10 için)
-        cat_sla_breach = defaultdict(int)
-        cat_sla_total = defaultdict(int)
-        for row in closed_qs.values('category_id', 'priority', '_dur'):
-            if row['category_id'] is None:
-                continue
-            cat_sla_total[row['category_id']] += 1
-            limit = thresholds.get(row['priority'], timedelta(hours=72))
-            if row['_dur'] and row['_dur'] > limit:
-                cat_sla_breach[row['category_id']] += 1
         for cat in context['top_categories']:
             sla_t = cat_sla_total.get(cat['pk'], 0)
             sla_b = cat_sla_breach.get(cat['pk'], 0)
@@ -236,7 +218,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
                 round((sla_t - sla_b) / sla_t * 100, 1) if sla_t else None
             )
 
-        # ── 9. Personel iş yükü + performans ─────────────────────────────
         if user.role == Role.ADMIN:
             user_qs = User.objects.filter(role=Role.AGENT, is_active=True)
         else:
@@ -244,7 +225,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
                 role=Role.AGENT, is_active=True, department=user.department
             )
 
-        # Filter kapsamına uyan biletlerin assignee bazlı dağılımı
         agent_rows = (
             ticket_qs.filter(assigned_to__isnull=False)
             .values('assigned_to_id')
@@ -266,17 +246,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             )
         )
         agent_map = {r['assigned_to_id']: r for r in agent_rows}
-
-        # Personel başına SLA breach (Python tarafında)
-        agent_sla_breach = defaultdict(int)
-        agent_sla_total = defaultdict(int)
-        for row in closed_qs.values('assigned_to_id', 'priority', '_dur'):
-            if row['assigned_to_id'] is None:
-                continue
-            agent_sla_total[row['assigned_to_id']] += 1
-            limit = thresholds.get(row['priority'], timedelta(hours=72))
-            if row['_dur'] and row['_dur'] > limit:
-                agent_sla_breach[row['assigned_to_id']] += 1
 
         personnel = []
         for u in user_qs.select_related('department').order_by('first_name', 'last_name'):
@@ -305,7 +274,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             })
         context['personnel'] = personnel
 
-        # CSAT en yüksek ve reopen oranı en yüksek personel sıralamaları
         csat_ranked = sorted(
             [p for p in personnel if p['avg_csat'] is not None],
             key=lambda p: -p['avg_csat'],
@@ -317,19 +285,21 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         context['personnel_csat_ranked'] = csat_ranked
         context['personnel_reopen_ranked'] = reopen_ranked
 
-        # ── 10. Personel × Kategori karnesi (top 30 hücre) ───────────────
-        matrix_rows = (
+        scorecard_rows = (
             ticket_qs.filter(assigned_to__isnull=False, category__isnull=False)
             .values(
+                'category_id',
+                'category__name',
+                'category__department__name',
                 'assigned_to_id',
                 'assigned_to__first_name',
                 'assigned_to__last_name',
                 'assigned_to__username',
-                'category_id',
-                'category__name',
             )
             .annotate(
                 c=Count('id'),
+                closed_c=Count('id', filter=Q(status=Status.CLOSED)),
+                clean_c=Count('id', filter=Q(status=Status.CLOSED, reopen_count=0)),
                 avg_dur=Avg(
                     ExpressionWrapper(
                         F('closed_at') - F('created_at'),
@@ -338,27 +308,41 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
                     filter=Q(status=Status.CLOSED, closed_at__isnull=False),
                 ),
             )
-            .order_by('-c')[:30]
         )
-        context['agent_category_matrix'] = [
-            {
+        cat_cards = {}
+        for r in scorecard_rows:
+            cid = r['category_id']
+            card = cat_cards.get(cid)
+            if card is None:
+                card = cat_cards[cid] = {
+                    'category_id': cid,
+                    'category_name': r['category__name'],
+                    'department_name': r['category__department__name'] or '—',
+                    'total': 0,
+                    'agents': [],
+                }
+            card['total'] += r['c']
+            closed_c = r['closed_c']
+            card['agents'].append({
                 'agent_id': r['assigned_to_id'],
                 'agent_name': (
                     f"{r['assigned_to__first_name']} {r['assigned_to__last_name']}".strip()
                     or r['assigned_to__username']
                 ),
-                'category_id': r['category_id'],
-                'category_name': r['category__name'],
                 'count': r['c'],
                 'avg_hours': (
                     round(r['avg_dur'].total_seconds() / 3600, 1) if r['avg_dur'] else None
                 ),
-            }
-            for r in matrix_rows
-        ]
+                'correct_rate': (
+                    round(r['clean_c'] / closed_c * 100, 1) if closed_c else None
+                ),
+            })
+        for card in cat_cards.values():
+            card['agents'].sort(key=lambda a: -a['count'])
+        context['category_scorecards'] = sorted(
+            cat_cards.values(), key=lambda c: -c['total']
+        )[:10]
 
-        # ── 11. Departman GİDEN bilet raporu (sender bazlı) ──────────────
-        # Hangi departman hangi kategoride en çok talep açıyor → eğitim ihtiyacı
         outgoing_rows = (
             ticket_qs.filter(sender__department__isnull=False, category__isnull=False)
             .values(
@@ -367,7 +351,7 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
                 'category__department__name',
             )
             .annotate(c=Count('id'))
-            .order_by('-c')[:30]
+            .order_by('-c')[:60]
         )
         context['outgoing_dept_matrix'] = [
             {
@@ -379,7 +363,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             for r in outgoing_rows
         ]
 
-        # En çok talep açan kullanıcılar (top 10)
         top_senders = (
             ticket_qs.values(
                 'sender_id',
@@ -407,7 +390,6 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         return context
 
 
-# ─── Yardımcı fonksiyonlar ──────────────────────────────────────────────
 
 def _parse_date(date_str):
     if not date_str:
@@ -419,11 +401,6 @@ def _parse_date(date_str):
 
 
 def _build_trend(ticket_qs, granularity, form):
-    """Açılan vs Kapanan biletlerin granülariteye göre trend serisini üretir.
-
-    Tarih aralığı form'da belirtilmişse o aralıkta zero-fill yapar; aksi halde
-    son 6 ay (aylık) / son 8 hafta (haftalık) / son 14 gün (günlük) kullanılır.
-    """
     trunc_cls = _TRUNC_MAP.get(granularity, TruncMonth)
     label_fmt = _LABEL_FORMAT.get(granularity, '%b %Y')
     now = timezone.now()
@@ -444,13 +421,11 @@ def _build_trend(ticket_qs, granularity, form):
         else:
             start_dt = now - timedelta(days=180)
 
-    # Açılan biletler: created_at bazlı bucket
     opened_rows = (
         ticket_qs.filter(created_at__gte=start_dt, created_at__lte=end_dt)
         .annotate(b=trunc_cls('created_at'))
         .values('b').annotate(c=Count('id')).order_by('b')
     )
-    # Kapanan biletler: closed_at bazlı bucket
     closed_rows = (
         ticket_qs.filter(
             status=Status.CLOSED,
@@ -465,7 +440,6 @@ def _build_trend(ticket_qs, granularity, form):
     opened_map = {r['b']: r['c'] for r in opened_rows}
     closed_map = {r['b']: r['c'] for r in closed_rows}
 
-    # Bucket dizisini üret (zero-fill)
     buckets = _generate_buckets(start_dt, end_dt, granularity)
     labels = [b.strftime(label_fmt) for b in buckets]
     opened = [opened_map.get(b, 0) for b in buckets]
@@ -474,7 +448,8 @@ def _build_trend(ticket_qs, granularity, form):
 
 
 def _generate_buckets(start, end, granularity):
-    """Granülariteye göre [start, end] aralığını dolduran bucket başlangıçları."""
+    start = timezone.localtime(start)
+    end = timezone.localtime(end)
     buckets = []
     if granularity == 'day':
         cur = start.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -483,19 +458,17 @@ def _generate_buckets(start, end, granularity):
             buckets.append(cur)
             cur += timedelta(days=1)
     elif granularity == 'week':
-        # Haftanın başı (Pazartesi) — TruncWeek default ISO Pazartesi
         cur = start.replace(hour=0, minute=0, second=0, microsecond=0)
         cur -= timedelta(days=cur.weekday())
         end_norm = end.replace(hour=0, minute=0, second=0, microsecond=0)
         while cur <= end_norm:
             buckets.append(cur)
             cur += timedelta(weeks=1)
-    else:  # month
+    else:
         cur = start.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end_norm = end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         while cur <= end_norm:
             buckets.append(cur)
-            # Bir sonraki ayın 1'i
             year = cur.year + (1 if cur.month == 12 else 0)
             month = 1 if cur.month == 12 else cur.month + 1
             cur = cur.replace(year=year, month=month)
@@ -503,7 +476,6 @@ def _generate_buckets(start, end, granularity):
 
 
 def _detect_category_anomalies(ticket_qs, min_current=5, threshold_pct=40):
-    """Son 7 gün vs önceki 7 gün kategori bazlı bilet sayısı karşılaştırması."""
     now = timezone.now()
     cur_start = now - timedelta(days=7)
     prev_start = now - timedelta(days=14)
@@ -547,10 +519,8 @@ def _detect_category_anomalies(ticket_qs, min_current=5, threshold_pct=40):
     return alerts
 
 
-# ─── Export fonksiyonları ───────────────────────────────────────────────
 
 def _get_ticket_export_data(user, request_get):
-    """Dışa aktarım için bilet verilerini toplar; rapor ile aynı filtreleri uygular."""
     form = ReportFilterForm(request_get or None, user=user)
     qs = form.apply(
         Ticket.objects.select_related(
@@ -591,7 +561,7 @@ def export_csv(request):
     rows = _get_ticket_export_data(request.user, request.GET)
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="bilet_raporu.csv"'
-    response.write('﻿')  # BOM for Excel UTF-8
+    response.write('﻿')
     writer = csv.writer(response)
     writer.writerow(EXPORT_HEADERS)
     for r in rows:
@@ -655,14 +625,18 @@ def export_pdf(request):
     total = len(rows)
     open_count = sum(1 for r in rows if r['status'] == 'Açık')
     in_progress_count = sum(1 for r in rows if r['status'] == 'İşlemde')
+    resolved_count = sum(1 for r in rows if r['status'] == 'Çözüldü')
     closed_count = sum(1 for r in rows if r['status'] == 'Kapandı')
+    escalated_count = sum(1 for r in rows if r['status'] == 'Eskalasyon')
 
     html = render_to_string('reports/export_pdf.html', {
         'rows': rows,
         'total': total,
         'open_count': open_count,
         'in_progress_count': in_progress_count,
+        'resolved_count': resolved_count,
         'closed_count': closed_count,
+        'escalated_count': escalated_count,
         'generated_at': timezone.now().strftime('%d.%m.%Y %H:%M'),
     })
 

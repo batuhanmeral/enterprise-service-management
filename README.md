@@ -8,17 +8,17 @@ Dispatch is a Django-based internal service and ticket management system.
 - Ticket lifecycle management
 - Comments, tags, and attachments
 - Notifications and reporting
-- SSR-first interface with a limited REST API
+- Server-side rendered (SSR) interface
 - TR/EN localization and dark mode support
 
 ## Project Structure
 
 - `identity` for authentication and user management
 - `departments` for department and category management
-- `tickets` for ticket workflows and API endpoints
+- `tickets` for ticket workflows
 - `notifications` for notification handling
 - `reports` for reporting views and exports
-- `dashboard` for the main landing page
+- the role-based landing page is served by `config/views.py` (no separate app)
 
 ## Setup
 

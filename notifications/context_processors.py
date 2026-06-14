@@ -1,4 +1,3 @@
-# Her sayfada okunmamış bildirim sayısını template'lere aktaran context processor
 def notification_count(request):
     if request.user.is_authenticated:
         from notifications.models import Notification

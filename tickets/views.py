@@ -11,9 +11,9 @@ from identity.views import AdminRequiredMixin
 from django.urls import reverse_lazy
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
-from django.db.models import Q, Case, When, IntegerField, F, ExpressionWrapper, DurationField
+from django.db.models import Q, Case, When, IntegerField, F
 
-from .models import Ticket, Status, Priority, TicketHistory, TicketActionType, TicketComment, TicketAttachment, Tag, SLA_HOURS
+from .models import Ticket, Status, Priority, TicketHistory, TicketActionType, TicketComment, TicketAttachment, Tag
 from notifications.models import Notification
 from identity.models import Role, User as UserModel
 from identity.audit import audit_log, AuditCategory
@@ -86,7 +86,6 @@ class AuditLogListView(LoginRequiredMixin, ListView):
         return context
 
 
-# Önceliklerin sayısal sıralaması (LOW < NORMAL < HIGH < URGENT)
 PRIORITY_ORDER = Case(
     When(priority=Priority.URGENT, then=4),
     When(priority=Priority.HIGH, then=3),
@@ -96,9 +95,7 @@ PRIORITY_ORDER = Case(
 )
 
 
-# Audit log yardımcı fonksiyonu — bilet detay timeline'ı için TicketHistory,
-# sistem genel "Geçmiş" sayfası için merkezi AuditLog'a yazar.
-# action_type: enum sorgulaması için (string-prefix matching kırılganlığını giderir).
+# Audit log: bilet timeline için TicketHistory + sistem geneli AuditLog'a yazar.
 def log_ticket_action(ticket, actor, action, request=None,
                       action_type=TicketActionType.OTHER):
     TicketHistory.objects.create(
@@ -125,11 +122,8 @@ class TicketListView(LoginRequiredMixin, ListView):
             'sender', 'assigned_to', 'department', 'category',
         ).prefetch_related('tags')
 
-        # Rol bazlı filtreleme
-        # AGENT/MANAGER: kendi departmanının biletleri + kendi açtığı biletler (başka
-        # departmana gönderdikleri dahil). Departmanı atanmamış ise sadece kendi biletleri.
         if user.role == Role.ADMIN:
-            pass  # Tüm biletler
+            pass
         elif user.role in (Role.AGENT, Role.MANAGER):
             if user.department_id:
                 qs = qs.filter(Q(department=user.department) | Q(sender=user))
@@ -138,51 +132,43 @@ class TicketListView(LoginRequiredMixin, ListView):
         else:
             qs = qs.filter(sender=user)
 
-        # Durum filtresi (query string: ?status=OPEN)
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(Q(subject__icontains=q) | Q(message__icontains=q))
+
         status_filter = self.request.GET.get('status')
         if status_filter and status_filter in dict(Status.choices):
             qs = qs.filter(status=status_filter)
 
-        # Öncelik filtresi (?priority=HIGH)
         priority_filter = self.request.GET.get('priority')
         if priority_filter and priority_filter in dict(Priority.choices):
             qs = qs.filter(priority=priority_filter)
 
-        # Departman filtresi (?department=<id>) — sadece ADMIN için kullanışlı,
-        # diğer roller zaten kendi departmanına kısıtlı.
         department_filter = self.request.GET.get('department')
         if department_filter and department_filter.isdigit():
             qs = qs.filter(department_id=int(department_filter))
 
-        # Kategori filtresi (?category=<id>)
         category_filter = self.request.GET.get('category')
         if category_filter and category_filter.isdigit():
             qs = qs.filter(category_id=int(category_filter))
 
-        # Açan (sender) filtresi (?sender=<id>)
         sender_filter = self.request.GET.get('sender')
         if sender_filter and sender_filter.isdigit():
             qs = qs.filter(sender_id=int(sender_filter))
 
-        # Üstlenen/Kapatan (assigned_to) filtresi (?assigned_to=<id>)
         assigned_filter = self.request.GET.get('assigned_to')
         if assigned_filter and assigned_filter.isdigit():
             qs = qs.filter(assigned_to_id=int(assigned_filter))
 
-        # Etiket filtresi (?tag=<id>)
         tag_filter = self.request.GET.get('tag')
         if tag_filter and tag_filter.isdigit():
             qs = qs.filter(tags__id=int(tag_filter)).distinct()
 
-        # SLA aşımı filtresi (?overdue=1) — önceliğe göre hedef saat geçen, kapanmamış biletler
         if self.request.GET.get('overdue') == '1':
-            now = timezone.now()
-            overdue_q = Q()
-            for prio, hours in SLA_HOURS.items():
-                overdue_q |= Q(priority=prio, created_at__lt=now - timedelta(hours=hours))
-            qs = qs.exclude(status__in=[Status.RESOLVED, Status.CLOSED, Status.ESCALATED]).filter(overdue_q)
+            qs = qs.exclude(
+                status__in=[Status.RESOLVED, Status.CLOSED, Status.ESCALATED]
+            ).filter(sla_due_at__lt=timezone.now())
 
-        # Tarih aralığı filtreleri (drill-down için) — ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
         date_from = self.request.GET.get('date_from')
         if date_from:
             try:
@@ -196,25 +182,17 @@ class TicketListView(LoginRequiredMixin, ListView):
             except ValueError:
                 pass
 
-        # SLA ihlali ile kapanan biletler (?sla_breach=1)
         if self.request.GET.get('sla_breach') == '1':
-            breach_q = Q()
-            for prio, hours in SLA_HOURS.items():
-                breach_q |= Q(priority=prio, _resolution_dur__gt=timedelta(hours=hours))
-            qs = qs.filter(status=Status.CLOSED, closed_at__isnull=False).annotate(
-                _resolution_dur=ExpressionWrapper(
-                    F('closed_at') - F('created_at'), output_field=DurationField()
-                ),
-            ).filter(breach_q)
+            qs = qs.filter(
+                status=Status.CLOSED, closed_at__isnull=False,
+                sla_due_at__isnull=False, closed_at__gt=F('sla_due_at'),
+            )
 
-        # Tekrar açılmış biletler (?reopened=1) — en az 1 kez reddedilip reopen edilmiş
         if self.request.GET.get('reopened') == '1':
             qs = qs.filter(reopen_count__gt=0)
 
-        # Sıralama (?sort=priority / ?sort=status / ?sort=created_at)
         sort = self.request.GET.get('sort', '-created_at')
         if sort == 'priority':
-            # Yüksek → düşük sırala (URGENT > HIGH > NORMAL > LOW)
             qs = qs.annotate(_priority_rank=PRIORITY_ORDER).order_by('-_priority_rank', '-created_at')
         else:
             allowed_sorts = {
@@ -235,6 +213,7 @@ class TicketListView(LoginRequiredMixin, ListView):
         context['user_role'] = user.role
         context['status_choices'] = Status.choices
         context['priority_choices'] = Priority.choices
+        context['current_q'] = self.request.GET.get('q', '')
         context['current_status'] = self.request.GET.get('status', '')
         context['current_priority'] = self.request.GET.get('priority', '')
         context['current_department'] = self.request.GET.get('department', '')
@@ -245,15 +224,9 @@ class TicketListView(LoginRequiredMixin, ListView):
         context['current_overdue'] = self.request.GET.get('overdue', '')
         context['tags'] = Tag.objects.all().order_by('name')
         context['current_sort'] = self.request.GET.get('sort', '-created_at')
-        # Toplu işlem yetkisi (Manager/Admin)
         context['can_bulk_action'] = user.role in (Role.MANAGER, Role.ADMIN)
         context['priority_choices'] = Priority.choices
 
-        # Filtre dropdown'ları için rol bazlı kapsam.
-        # Sıralama: önce departman adı, sonra kullanıcı/kategori adı
-        # → "IT - Batuhan", "IT - Hakan", "Muhasebe - Ahmet" akışı.
-        # filter_users  : Açan dropdown'u (herhangi bir rol bilet açabilir)
-        # assignee_users: Üstlenen dropdown'u — sadece AGENT (bilet üstlenebilen rol)
         if user.role == Role.ADMIN:
             context['departments'] = Department.objects.order_by('name')
             context['categories'] = (
@@ -270,7 +243,6 @@ class TicketListView(LoginRequiredMixin, ListView):
             context['filter_users'] = base_users
             context['assignee_users'] = base_users.filter(role=Role.AGENT)
         elif user.role in (Role.AGENT, Role.MANAGER):
-            # Sadece kendi departmanlarındaki kategoriler ve personel
             context['categories'] = (
                 Category.objects
                 .select_related('department')
@@ -286,7 +258,6 @@ class TicketListView(LoginRequiredMixin, ListView):
             context['filter_users'] = base_users
             context['assignee_users'] = base_users.filter(role=Role.AGENT)
         else:
-            # EMPLOYEE: biletlerini departman ve kategoriye göre filtreleyebilsin
             context['departments'] = Department.objects.order_by('name')
             context['categories'] = (
                 Category.objects
@@ -296,16 +267,13 @@ class TicketListView(LoginRequiredMixin, ListView):
         return context
 
 
-# SSR bilet oluşturma için kullanıcı başına saatlik limit (DRF UserRateThrottle ile aynı oran)
 TICKET_CREATE_LIMIT_PER_HOUR = 30
 
 
 def _user_can_create_ticket(user):
-    """Kullanıcı saatlik limitin altında mı? Cache'e dakika bazlı sayıcı yazar."""
     from django.core.cache import cache
     from django.utils import timezone
     now = timezone.now()
-    # Sliding window yerine sabit-saat penceresi (basit + yeterli)
     bucket = now.strftime('%Y%m%d%H')
     key = f'ticket_create:{user.pk}:{bucket}'
     count = cache.get(key, 0)
@@ -319,20 +287,17 @@ def _user_can_create_ticket(user):
 class TicketCreateView(LoginRequiredMixin, CreateView):
     model = Ticket
     template_name = 'tickets/ticket_form.html'
-    # 'attachment' artık modelin alanı değil; çoklu dosya request.FILES'dan elle alınır
     fields = ['subject', 'message', 'department', 'category', 'priority', 'tags']
     success_url = reverse_lazy('tickets:ticket_list')
 
     def get_initial(self):
         initial = super().get_initial()
-        # AGENT/MANAGER: kendi departmanını otomatik seç → kategori AJAX'ı sayfa yüklendiğinde tetiklenir
         user = self.request.user
         if user.role in (Role.AGENT, Role.MANAGER) and user.department_id:
             initial['department'] = user.department_id
         return initial
 
     def form_valid(self, form):
-        # Spam koruması — kullanıcı başına saatlik limit
         if not _user_can_create_ticket(self.request.user):
             messages.error(
                 self.request,
@@ -351,13 +316,37 @@ class TicketCreateView(LoginRequiredMixin, CreateView):
         form.instance.status = Status.OPEN
         response = super().form_valid(form)
 
-        # Çoklu dosya ekleri kaydet
         _save_ticket_attachments(self.request, self.object)
 
         log_ticket_action(self.object, self.request.user, 'Bilet oluşturuldu.',
                           action_type=TicketActionType.CREATED)
-        # Departman yönetici ve ajanlarına bildirim — sender da o departmandansa exclude
-        _notify_department_on_new_ticket(self.object, exclude_user=self.request.user)
+
+        assignee = self.object.auto_assign()
+        if assignee:
+            log_ticket_action(
+                self.object, None,
+                f'Bilet otomatik olarak {assignee.get_full_name() or assignee.username} '
+                f'personeline atandı (en az iş yükü).',
+                action_type=TicketActionType.ASSIGNED,
+            )
+            Notification.objects.create(
+                recipient=assignee, ticket=self.object,
+                message=(
+                    f'"{self.object.subject}" (#{self.object.pk}) bileti '
+                    f'otomatik olarak size atandı.'
+                ),
+            )
+            if self.object.sender_id != assignee.pk:
+                Notification.objects.create(
+                    recipient=self.object.sender, ticket=self.object,
+                    message=(
+                        f'Talebiniz "{self.object.subject}" (#{self.object.pk}) '
+                        f'{assignee.get_full_name() or assignee.username} personeline atandı.'
+                    ),
+                )
+        else:
+            _notify_department_on_new_ticket(self.object, exclude_user=self.request.user)
+
         messages.success(
             self.request,
             f'Talebiniz başarıyla oluşturuldu. ({self.object.code})',
@@ -374,8 +363,7 @@ def _save_ticket_attachments(request, ticket):
         )
 
 
-# Bilete bağlı departmandaki AGENT + MANAGER ekibine tek mesajla bildirim gönderir.
-# Tüm departman bildirim akışlarında (yeni bilet, transfer, confirm/reject/reopen) ortak helper.
+# Departmandaki AGENT + MANAGER ekibine tek mesajla bildirim gönderen ortak helper.
 def _notify_department_team(ticket, message, exclude_user=None):
     if not ticket.department_id:
         return
@@ -454,8 +442,6 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         context['history'] = self.object.history.select_related('actor').all()
         context['comments'] = self.object.comments.select_related('author').all()
 
-        # Atama yetkisi: Admin tümüne, Manager sadece kendi departmanı.
-        # Kilitli (CLOSED/ESCALATED) ya da çözüm-onay bekleyen (RESOLVED) bilete atama açılmaz.
         user = self.request.user
         ticket = self.object
         can_assign = (
@@ -474,7 +460,6 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
                 .order_by('first_name', 'last_name', 'username')
             )
 
-        # Yaşam döngüsü flag'leri (template aksiyon görünürlüğü için)
         context['is_sender'] = (ticket.sender_id == user.pk)
         context['is_assignee'] = (ticket.assigned_to_id == user.pk)
         context['can_resolve'] = (
@@ -530,8 +515,7 @@ def ticket_take_view(request, pk):
     return redirect('tickets:ticket_detail', pk=ticket.pk)
 
 
-# Manuel atama — Admin tüm biletlere, Manager sadece kendi departmanına gelen biletlere
-# personel ataması yapabilir. Hedef personel, biletin departmanında AGENT rolünde olmalı.
+# Manuel atama — Admin tüm departmanlara, Manager kendi departmanına AGENT atayabilir.
 @login_required
 @require_POST
 def ticket_assign_view(request, pk):
@@ -556,7 +540,6 @@ def ticket_assign_view(request, pk):
 
     personnel_id = request.POST.get('personnel_id', '')
 
-    # "" değer atamayı kaldırma anlamı taşır (sadece Admin/Manager için)
     if not personnel_id:
         old_assignee = ticket.assigned_to
         with transaction.atomic():
@@ -577,7 +560,6 @@ def ticket_assign_view(request, pk):
         messages.success(request, f'Bilet #{ticket.pk} ataması kaldırıldı.')
         return redirect('tickets:ticket_detail', pk=ticket.pk)
 
-    # Hedef personeli bul ve doğrula
     try:
         target = UserModel.objects.get(pk=personnel_id, is_active=True)
     except (UserModel.DoesNotExist, ValueError):
@@ -606,7 +588,6 @@ def ticket_assign_view(request, pk):
             action_type=TicketActionType.ASSIGNED,
         )
 
-    # Yeni atanan kişiye bildirim
     Notification.objects.create(
         recipient=target, ticket=ticket,
         message=(
@@ -614,7 +595,6 @@ def ticket_assign_view(request, pk):
             f'({user.get_full_name() or user.username} tarafından).'
         ),
     )
-    # Talep sahibine bildirim
     if ticket.sender and ticket.sender != target:
         Notification.objects.create(
             recipient=ticket.sender, ticket=ticket,
@@ -623,7 +603,6 @@ def ticket_assign_view(request, pk):
                 f'{target.get_full_name() or target.username} kişisine atandı.'
             ),
         )
-    # Eski atanan kişiye bildirim
     if old_assignee and old_assignee != target and old_assignee != user:
         Notification.objects.create(
             recipient=old_assignee, ticket=ticket,
@@ -637,8 +616,7 @@ def ticket_assign_view(request, pk):
     return redirect('tickets:ticket_detail', pk=ticket.pk)
 
 
-# Bileti çözüldü olarak işaretleme — atanan personel veya Admin (IN_PROGRESS -> RESOLVED).
-# Bu nihai kapanış DEĞİLDİR; talep sahibi onayı (veya 3 günlük auto-close) ile CLOSED'a geçer.
+# Çözüldü işaretleme — atanan personel veya Admin (IN_PROGRESS -> RESOLVED, onay bekler).
 @login_required
 @require_POST
 def ticket_resolve_view(request, pk):
@@ -718,6 +696,7 @@ def ticket_transfer_view(request, pk):
         new_category = get_object_or_404(Category, pk=new_cat_id, department=new_department)
 
     old_department = ticket.department
+    old_assigned_to = ticket.assigned_to
     ticket.transfer(new_department, new_category)
     log_ticket_action(
         ticket, user,
@@ -735,9 +714,9 @@ def ticket_transfer_view(request, pk):
             ),
         )
 
-    if ticket.assigned_to and ticket.assigned_to != user:
+    if old_assigned_to and old_assigned_to != user:
         Notification.objects.create(
-            recipient=ticket.assigned_to,
+            recipient=old_assigned_to,
             ticket=ticket,
             message=(
                 f'Üstlendiğiniz bilet "{ticket.subject}" (#{ticket.pk}) '
@@ -745,9 +724,20 @@ def ticket_transfer_view(request, pk):
             ),
         )
 
-    # Yeni departman ekibine bilgilendirme (yönetici + ajanlar) — transfer eden hariç
-    _notify_department_on_new_ticket(ticket, exclude_user=user)
-    # Eski departman ekibine "departmanımızdan çıktı" bildirimi
+    assignee = ticket.auto_assign()
+    if assignee:
+        log_ticket_action(
+            ticket, None,
+            f'Bilet otomatik olarak {assignee.get_full_name() or assignee.username} '
+            f'personeline atandı (en az iş yükü).',
+            action_type=TicketActionType.ASSIGNED,
+        )
+        Notification.objects.create(
+            recipient=assignee, ticket=ticket,
+            message=f'"{ticket.subject}" (#{ticket.pk}) bileti otomatik olarak size atandı.',
+        )
+    else:
+        _notify_department_on_new_ticket(ticket, exclude_user=user)
     _notify_department_on_ticket_left(ticket, old_department, exclude_user=user)
 
     messages.success(
@@ -755,7 +745,6 @@ def ticket_transfer_view(request, pk):
         f'Bilet #{ticket.pk} "{new_department.name}" departmanına transfer edildi.',
     )
 
-    # Eğer kullanıcı Admin değilse ve bilet sahibi değilse, transfer sonrası bileti göremez
     if user.role != Role.ADMIN and ticket.sender != user:
         return redirect('tickets:ticket_list')
 
@@ -774,7 +763,6 @@ class TicketUpdateView(LoginRequiredMixin, UpdateView):
 
         if user.role == Role.ADMIN:
             return qs
-        # Sender sadece HENÜZ atanmamış (assigned_to is None) ve OPEN biletini düzenleyebilir
         return qs.filter(sender=user, status=Status.OPEN, assigned_to__isnull=True)
 
     def get_success_url(self):
@@ -802,7 +790,6 @@ def ticket_add_comment_view(request, pk):
     ticket = get_object_or_404(Ticket, pk=pk)
     user = request.user
 
-    # Erişim kontrolü: sender, aynı departman personeli/yöneticisi veya admin
     if user.role == Role.ADMIN:
         pass
     elif user.role in (Role.AGENT, Role.MANAGER):
@@ -827,7 +814,6 @@ def ticket_add_comment_view(request, pk):
         attachment=attachment,
     )
 
-    # Talep sahibi yorum yazdıysa personele bildir; personel yazdıysa talep sahibine bildir
     if user == ticket.sender:
         recipient = ticket.assigned_to
     else:
@@ -846,8 +832,7 @@ def ticket_add_comment_view(request, pk):
     return redirect('tickets:ticket_detail', pk=ticket.pk)
 
 
-# Çözüm onayı — Talep sahibi RESOLVED biletine "Evet, başarılı" der (-> CLOSED).
-# "Hayır" işlemi ayrı bir endpoint'tedir (gerekçe zorunlu olduğu için, bkz. ticket_reject_resolution_view).
+# Çözüm onayı — Talep sahibi RESOLVED biletini onaylar (-> CLOSED).
 @login_required
 @require_POST
 def ticket_confirm_resolution_view(request, pk):
@@ -868,7 +853,6 @@ def ticket_confirm_resolution_view(request, pk):
             action_type=TicketActionType.RESOLUTION_CONFIRMED,
         )
 
-    # Personel ve yöneticileri bilgilendir
     _notify_department_team(
         ticket,
         f'"{ticket.subject}" (#{ticket.pk}) bileti talep sahibi tarafından onaylandı ve kapatıldı.',
@@ -879,8 +863,7 @@ def ticket_confirm_resolution_view(request, pk):
     return redirect('tickets:ticket_detail', pk=ticket.pk)
 
 
-# Çözüm reddi — Talep sahibi RESOLVED biletine "Hayır, başarısız" der.
-# Gerekçe zorunlu. MAX_REOPENS aşılmadıysa bilet IN_PROGRESS'e döner; aşılırsa ESCALATED.
+# Çözüm reddi (gerekçe zorunlu) — MAX_REOPENS altında IN_PROGRESS'e döner, aşılınca ESCALATED.
 @login_required
 @require_POST
 def ticket_reject_resolution_view(request, pk):
@@ -916,8 +899,6 @@ def ticket_reject_resolution_view(request, pk):
                 action_type=TicketActionType.ESCALATED,
             )
 
-    # Departman ekibine bildirim — sender hariç tutulmaz (sender bu departmanda olmayabilir;
-    # olsa bile eskalasyon/yeniden işleme bilgisini ekiple birlikte alır).
     if reopened:
         msg = (
             f'"{ticket.subject}" (#{ticket.pk}) bileti talep sahibi tarafından '
@@ -982,20 +963,26 @@ def ticket_rate_csat_view(request, pk):
     return redirect('tickets:ticket_detail', pk=ticket.pk)
 
 
-# Bilet yeniden açma — Sadece Admin (CLOSED veya ESCALATED -> OPEN, manuel override).
-# Normal akışta CLOSED kilitlidir; talep sahibinin "Hayır" yanıtı zaten
-# RESOLVED durumdaki bilete ticket_reject_resolution_view ile uygulanır.
+# Bilet yeniden açma (kilit override): Admin her kilitli, Manager kendi dept. ESCALATED'ı.
 @login_required
 @require_POST
 def ticket_reopen_view(request, pk):
     ticket = get_object_or_404(Ticket, pk=pk)
     user = request.user
 
-    if user.role != Role.ADMIN:
-        return HttpResponseForbidden('Sadece Admin kilitlenmiş bir bileti yeniden açabilir.')
+    is_admin = user.role == Role.ADMIN
+    is_dept_manager = (
+        user.role == Role.MANAGER and ticket.department_id == user.department_id
+    )
+    if not (is_admin or is_dept_manager):
+        return HttpResponseForbidden('Bu bileti yeniden açma yetkiniz bulunmamaktadır.')
 
-    if ticket.status not in (Status.CLOSED, Status.ESCALATED):
-        messages.warning(request, 'Sadece kilitli (Kapalı veya Eskalasyon) biletler yeniden açılabilir.')
+    allowed = (Status.CLOSED, Status.ESCALATED) if is_admin else (Status.ESCALATED,)
+    if ticket.status not in allowed:
+        if is_admin:
+            messages.warning(request, 'Sadece kilitli (Kapalı veya Eskalasyon) biletler yeniden açılabilir.')
+        else:
+            messages.warning(request, 'Yönetici olarak yalnızca eskalasyona alınmış biletleri yeniden açabilirsiniz.')
         return redirect('tickets:ticket_detail', pk=ticket.pk)
 
     ticket.reopen()
@@ -1027,13 +1014,10 @@ def ticket_bulk_action_view(request):
         return redirect('tickets:ticket_list')
 
     qs = Ticket.objects.filter(pk__in=ticket_ids)
-    # Manager kapsamı: sadece kendi departmanı
     if user.role == Role.MANAGER:
         qs = qs.filter(department=user.department)
 
     if action == 'resolve':
-        # Sadece İŞLEMDEKİ biletler çözüldü olarak işaretlenebilir.
-        # CLOSED ve ESCALATED kilitli; OPEN ise henüz üstlenilmemiş.
         from django.utils import timezone
         target = qs.filter(status=Status.IN_PROGRESS)
         ids = list(target.values_list('pk', flat=True))
@@ -1050,7 +1034,6 @@ def ticket_bulk_action_view(request):
                 action='Bilet çözüldü olarak işaretlendi (toplu işlem).',
                 action_type=TicketActionType.RESOLVED,
             )
-        # Talep sahiplerine onay bildirimleri
         for t in Ticket.objects.filter(pk__in=ids).select_related('sender'):
             if t.sender:
                 Notification.objects.create(
@@ -1063,15 +1046,15 @@ def ticket_bulk_action_view(request):
         messages.success(request, f'{count} bilet çözüldü olarak işaretlendi.')
 
     elif action == 'reopen':
-        # Yalnızca Admin kilidi açar (CLOSED ya da ESCALATED).
-        if user.role != Role.ADMIN:
-            messages.error(request, 'Yeniden açma işlemi yalnızca Admin tarafından yapılabilir.')
-            return redirect('tickets:ticket_list')
-        target = qs.filter(status__in=[Status.CLOSED, Status.ESCALATED])
+        if user.role == Role.ADMIN:
+            target = qs.filter(status__in=[Status.CLOSED, Status.ESCALATED])
+        else:
+            target = qs.filter(status=Status.ESCALATED)
         ids = list(target.values_list('pk', flat=True))
         count = target.update(
             status=Status.OPEN, assigned_to=None, closed_at=None,
             resolved_at=None, resolution_confirmed=None,
+            reopen_count=0, rejection_reason='', escalated_at=None,
         )
         for tid in ids:
             TicketHistory.objects.create(
@@ -1081,18 +1064,24 @@ def ticket_bulk_action_view(request):
         messages.success(request, f'{count} bilet yeniden açıldı.')
 
     elif action == 'delete':
-        # Silme: Admin her zaman, Manager sadece kendi departmanı
         count = qs.count()
         qs.delete()
         messages.success(request, f'{count} bilet silindi.')
 
     elif action.startswith('priority:'):
-        # priority:HIGH gibi
         new_priority = action.split(':', 1)[1]
         if new_priority not in dict(Priority.choices):
             messages.error(request, 'Geçersiz öncelik.')
             return redirect('tickets:ticket_list')
+        from .models import SLA_HOURS, add_business_hours
+        affected = list(qs)
         count = qs.update(priority=new_priority)
+        for t in affected:
+            if t.created_at:
+                t.sla_due_at = add_business_hours(
+                    t.created_at, SLA_HOURS.get(new_priority, SLA_HOURS[Priority.NORMAL])
+                )
+        Ticket.objects.bulk_update(affected, ['sla_due_at'], batch_size=500)
         messages.success(request, f'{count} biletin önceliği "{dict(Priority.choices)[new_priority]}" olarak ayarlandı.')
 
     else:
@@ -1109,7 +1098,6 @@ def ticket_attachment_delete_view(request, pk):
     ticket = attachment.ticket
     user = request.user
 
-    # Yükleyen her zaman silebilir; talep sahibi sadece bilet henüz atanmamışsa
     is_uploader = (attachment.uploaded_by == user)
     is_sender_before_assign = (ticket.sender == user and ticket.assigned_to is None)
     is_owner = is_uploader or is_sender_before_assign
@@ -1174,7 +1162,6 @@ class KanbanView(LoginRequiredMixin, TemplateView):
         else:
             qs = qs.filter(sender=user)
 
-        # Kapalı sütunda son 30 günü göster — sınırsız büyümesin
         from django.utils import timezone
         from datetime import timedelta
         closed_cutoff = timezone.now() - timedelta(days=30)
@@ -1191,7 +1178,7 @@ class KanbanView(LoginRequiredMixin, TemplateView):
         return context
 
 
-# AJAX kanban drop — durum geçişi (OPEN/IN_PROGRESS/CLOSED) yetkiyle birlikte
+# AJAX kanban drop
 @login_required
 def ticket_change_status_view(request, pk):
     if request.method != 'POST':
@@ -1204,7 +1191,6 @@ def ticket_change_status_view(request, pk):
     if target not in dict(Status.choices):
         return JsonResponse({'ok': False, 'error': 'Geçersiz durum.'}, status=400)
 
-    # OPEN → IN_PROGRESS (üstlen)
     if target == Status.IN_PROGRESS and ticket.status == Status.OPEN:
         if user.role not in (Role.AGENT, Role.MANAGER) or ticket.department_id != user.department_id:
             return JsonResponse({'ok': False, 'error': 'Bu departmandan değilsiniz.'}, status=403)
@@ -1218,7 +1204,6 @@ def ticket_change_status_view(request, pk):
             )
         return JsonResponse({'ok': True, 'status': ticket.status})
 
-    # IN_PROGRESS → RESOLVED (çözüldü olarak işaretle)
     if target == Status.RESOLVED and ticket.status == Status.IN_PROGRESS:
         if not (ticket.assigned_to == user or user.role == Role.ADMIN):
             return JsonResponse({'ok': False, 'error': 'Bileti üstlenen veya Admin çözüm işaretleyebilir.'}, status=403)
@@ -1238,7 +1223,6 @@ def ticket_change_status_view(request, pk):
             )
         return JsonResponse({'ok': True, 'status': ticket.status})
 
-    # CLOSED veya ESCALATED → OPEN (Admin override)
     if target == Status.OPEN and ticket.status in (Status.CLOSED, Status.ESCALATED):
         if user.role != Role.ADMIN:
             return JsonResponse({'ok': False, 'error': 'Sadece Admin kilitlenmiş bileti yeniden açabilir.'}, status=403)
@@ -1250,9 +1234,7 @@ def ticket_change_status_view(request, pk):
     return JsonResponse({'ok': False, 'error': 'Geçersiz durum geçişi.'}, status=400)
 
 
-# Etiket CRUD (Sadece Admin)
 
-# Hazır renk paleti — Bootstrap renk uyumlu
 TAG_COLOR_PALETTE = [
     ('#dc3545', 'Kırmızı'),
     ('#fd7e14', 'Turuncu'),

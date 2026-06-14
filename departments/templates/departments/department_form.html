@@ -53,6 +53,19 @@
                                   placeholder="{% trans 'Departmanın sorumluluk alanı...' %}">{{ form.description.value|default:'' }}</textarea>
                     </div>
 
+                    <!-- Otomatik Atama -->
+                    <div class="mb-4 form-check form-switch">
+                        <input type="checkbox"
+                               name="auto_assign_enabled"
+                               id="id_auto_assign_enabled"
+                               class="form-check-input"
+                               {% if form.auto_assign_enabled.value %}checked{% endif %}>
+                        <label for="id_auto_assign_enabled" class="form-check-label">
+                            {% trans "Otomatik atama" %}
+                            <small class="text-muted d-block">{% trans "Yeni biletler departmandaki en az iş yüküne sahip personele otomatik atanır." %}</small>
+                        </label>
+                    </div>
+
                     <!-- Butonlar -->
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-dark">

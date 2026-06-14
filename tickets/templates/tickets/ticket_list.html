@@ -27,6 +27,17 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body py-3">
         <form method="get" class="row g-2 align-items-end">
+            {# Satır 0: Serbest metin araması (konu/mesaj) #}
+            <div class="col-12">
+                <label for="filter_q" class="form-label small text-muted mb-1">{% trans "Ara" %}</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" id="filter_q" class="form-control form-control-sm"
+                           value="{{ current_q }}"
+                           placeholder="{% trans 'Konu veya mesajda ara...' %}">
+                </div>
+            </div>
+
             {# Satır 1: Durum, Öncelik, Departman, Kategori #}
 
             <div class="col-md-3">

@@ -15,13 +15,10 @@ from identity.audit import audit_log, AuditCategory
 
 from .models import Department, Category
 
-
-# Departman formu — manager FK kaldırıldı.
-# Yöneticiler artık User.role=MANAGER + User.department üzerinden türetilir.
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
-        fields = ['name', 'description']
+        fields = ['name', 'description', 'auto_assign_enabled']
 
 
 # Departman listeleme — MANAGER doğrudan kendi departmanına yönlendirilir
@@ -37,8 +34,6 @@ class DepartmentListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        # Liste görünümünde personel/çalışan/yönetici sayıları annotate edilir;
-        # ad listesi DEĞİL — admin sadece detayda yöneticilerin adlarını görür.
         return (
             Department.objects
             .prefetch_related('categories')
@@ -75,26 +70,19 @@ class DepartmentDetailView(LoginRequiredMixin, DetailView):
             .annotate(ticket_count=Count('tickets'))
             .order_by('name')
         )
-        # Yöneticiler — sadece ADMIN görüntülenebilir/yönetebilir
         context['managers'] = User.objects.filter(
             department=self.object, role=Role.MANAGER,
         ).order_by('first_name', 'last_name', 'username')
-        # Diğer üyeler: AGENT + EMPLOYEE
         context['members'] = User.objects.filter(
             department=self.object,
             role__in=[Role.AGENT, Role.EMPLOYEE],
         ).order_by('role', 'first_name', 'last_name')
 
-        # Rol değiştirme dropdown seçenekleri:
-        # - ADMIN: AGENT/EMPLOYEE/MANAGER (3'ü de mümkün)
-        # - MANAGER: AGENT/EMPLOYEE/MANAGER (üyeleri yönetici yapabilir ama
-        #   mevcut MANAGER'ları düşüremez — view-katmanı zorlar)
         context['role_choices'] = [
             (Role.EMPLOYEE, 'Çalışan'),
             (Role.AGENT, 'Personel'),
             (Role.MANAGER, 'Yönetici'),
         ]
-        # Atanabilir personel: AGENT rolünde, departmanı boş, aktif
         context['available_personnel'] = User.objects.filter(
             role=Role.AGENT,
             department__isnull=True,
@@ -127,7 +115,6 @@ class DepartmentUpdateView(ManagerOrAdminRequiredMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
-        # Manager sadece kendi departmanını düzenleyebilir
         if hasattr(self, 'object') and request.user.role == Role.MANAGER:
             if request.user.department_id != self.object.pk:
                 return HttpResponseForbidden('Bu departmanı düzenleme yetkiniz yok.')
@@ -241,7 +228,6 @@ def department_categories_api(request, pk):
 def department_add_personnel(request, pk):
     department = get_object_or_404(Department, pk=pk)
 
-    # Yetki: ADMIN her departmana, MANAGER sadece kendi departmanına ekleyebilir
     is_admin = request.user.role == Role.ADMIN
     is_dept_manager = (
         request.user.role == Role.MANAGER
@@ -278,10 +264,7 @@ def department_add_personnel(request, pk):
     return redirect('departments:department_detail', pk=pk)
 
 
-# Departman üyesinin rolünü değiştir.
-# Yetki kuralları:
-#   - ADMIN: tüm yönlerde geçiş (EMPLOYEE ↔ AGENT ↔ MANAGER), ayrıca MANAGER → AGENT/EMPLOYEE düşürme
-#   - MANAGER: EMPLOYEE/AGENT'ı MANAGER yapabilir; başka MANAGER'ı DÜŞÜREMEZ (admin işi)
+# Üye rolü değiştir: ADMIN her geçişi yapar; MANAGER yükseltir ama MANAGER düşüremez.
 @login_required
 @require_POST
 def department_change_member_role(request, pk, user_pk):
@@ -297,7 +280,6 @@ def department_change_member_role(request, pk, user_pk):
 
     target_user = get_object_or_404(User, pk=user_pk, department=department)
 
-    # Yönetici kendi rolünü değiştiremez
     if target_user == request.user:
         messages.warning(request, 'Kendi rolünüzü değiştiremezsiniz.')
         return redirect('departments:department_detail', pk=pk)
@@ -311,7 +293,6 @@ def department_change_member_role(request, pk, user_pk):
         messages.info(request, f'{target_user.get_full_name() or target_user.username} zaten bu rolde.')
         return redirect('departments:department_detail', pk=pk)
 
-    # MANAGER düşürme yetkisi sadece ADMIN'de
     if target_user.role == Role.MANAGER and not is_admin:
         return HttpResponseForbidden('Yöneticilerin rolünü sadece Admin değiştirebilir.')
 

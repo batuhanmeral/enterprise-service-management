@@ -6,14 +6,19 @@
 {% block content %}
 
 <!-- Hoş geldin başlığı -->
-<div class="mb-4">
-    <h1 class="h4">
-        <i class="bi bi-house me-2"></i>{% blocktrans with name=user.get_full_name|default:user.username %}Hoş geldiniz, {{ name }}{% endblocktrans %}
-    </h1>
-    <small class="text-muted">
-        {{ user.get_role_display }}
-        {% if user.department %} · {{ user.department.name }}{% endif %}
-    </small>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+    <div>
+        <h1 class="h4 mb-0">
+            <i class="bi bi-house me-2"></i>{% blocktrans with name=user.get_full_name|default:user.username %}Hoş geldiniz, {{ name }}{% endblocktrans %}
+        </h1>
+        <small class="text-muted">
+            {{ user.get_role_display }}
+            {% if user.department %} · {{ user.department.name }}{% endif %}
+        </small>
+    </div>
+    <a href="{% url 'tickets:ticket_create' %}" class="btn btn-dark">
+        <i class="bi bi-plus-lg me-1"></i>{% trans "Yeni Bilet Oluştur" %}
+    </a>
 </div>
 
 <!-- EMPLOYEE DASHBOARD -->
@@ -80,44 +85,34 @@
     </div>
     {% endif %}
 
-    <div class="row g-3">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted mb-3">{% trans "Son Taleplerim" %}</h6>
-                    {% if recent_tickets %}
-                        <div class="list-group list-group-flush">
-                            {% for t in recent_tickets %}
-                                <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between">
-                                    <div>
-                                        <span>{{ t.subject }}</span>
-                                        <small class="text-muted d-block">{{ t.created_at|date:"d.m.Y" }}</small>
-                                    </div>
-                                    {% if t.status == 'OPEN' %}
-                                        <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
-                                    {% elif t.status == 'IN_PROGRESS' %}
-                                        <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
-                                    {% elif t.status == 'RESOLVED' %}
-                                        <span class="badge bg-info text-dark align-self-center">{% trans "Çözüldü" %}</span>
-                                    {% elif t.status == 'CLOSED' %}
-                                        <span class="badge bg-success align-self-center">{% trans "Kapandı" %}</span>
-                                    {% elif t.status == 'ESCALATED' %}
-                                        <span class="badge bg-danger align-self-center">{% trans "Eskalasyon" %}</span>
-                                    {% endif %}
-                                </a>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted text-center mb-0">{% trans "Henüz talebiniz yok" %}</p>
-                    {% endif %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <h6 class="text-muted mb-3">{% trans "Son Taleplerim" %}</h6>
+            {% if recent_tickets %}
+                <div class="list-group list-group-flush">
+                    {% for t in recent_tickets %}
+                        <a href="{% url 'tickets:ticket_detail' t.pk %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between">
+                            <div>
+                                <span>{{ t.subject }}</span>
+                                <small class="text-muted d-block">{{ t.created_at|date:"d.m.Y" }}</small>
+                            </div>
+                            {% if t.status == 'OPEN' %}
+                                <span class="badge bg-primary align-self-center">{% trans "Açık" %}</span>
+                            {% elif t.status == 'IN_PROGRESS' %}
+                                <span class="badge bg-warning text-dark align-self-center">{% trans "İşlemde" %}</span>
+                            {% elif t.status == 'RESOLVED' %}
+                                <span class="badge bg-info text-dark align-self-center">{% trans "Çözüldü" %}</span>
+                            {% elif t.status == 'CLOSED' %}
+                                <span class="badge bg-success align-self-center">{% trans "Kapandı" %}</span>
+                            {% elif t.status == 'ESCALATED' %}
+                                <span class="badge bg-danger align-self-center">{% trans "Eskalasyon" %}</span>
+                            {% endif %}
+                        </a>
+                    {% endfor %}
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <a href="{% url 'tickets:ticket_create' %}" class="btn btn-dark w-100 mb-3">
-                <i class="bi bi-plus-lg me-1"></i>{% trans "Yeni Bilet Oluştur" %}
-            </a>
-            {% include "partials/_recent_notifications.html" %}
+            {% else %}
+                <p class="text-muted text-center mb-0">{% trans "Henüz talebiniz yok" %}</p>
+            {% endif %}
         </div>
     </div>
 
@@ -204,36 +199,6 @@
                 </div>
             </div>
 
-            {% if weekly_stats %}
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body">
-                    <h6 class="text-muted mb-3">
-                        <i class="bi bi-bar-chart me-1"></i>{% trans "Haftalık Kapanış" %}
-                    </h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead><tr><th>{% trans "Hafta" %}</th><th class="text-center">{% trans "Kapanan" %}</th></tr></thead>
-                            <tbody>
-                                {% for w in weekly_stats %}
-                                    <tr>
-                                        <td><small>{{ w.week_start|date:"d.m" }} — {{ w.week_end|date:"d.m" }}</small></td>
-                                        <td class="text-center">
-                                            {% if w.count > 0 %}
-                                                <span class="badge bg-success">{{ w.count }}</span>
-                                            {% else %}
-                                                <span class="text-muted">0</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% include "partials/_recent_notifications.html" %}
         </div>
     </div>
 
@@ -340,7 +305,6 @@
                     {% endif %}
                 </div>
             </div>
-            {% include "partials/_recent_notifications.html" %}
         </div>
     </div>
 
@@ -460,10 +424,6 @@
                 <i class="bi bi-person-exclamation me-1"></i>{% blocktrans count counter=pending_users_count %}{{ counter }} Onay Bekleyen Kullanıcı{% plural %}{{ counter }} Onay Bekleyen Kullanıcı{% endblocktrans %}
             </a>
             {% endif %}
-
-            <div class="mt-4">
-                {% include "partials/_recent_notifications.html" %}
-            </div>
         </div>
     </div>
 {% endif %}

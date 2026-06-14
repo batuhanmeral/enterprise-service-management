@@ -9,10 +9,6 @@ from notifications.models import Notification
 from tickets.models import SLA_HOURS, Status, Ticket
 
 
-# Aktif (RESOLVED/CLOSED/ESCALATED dışı) biletlerin SLA hedefinin
-# WARN_THRESHOLD_PCT'ine ulaşanlara, henüz uyarı gönderilmediyse, tek seferlik
-# proaktif bildirim gönderir. assigned_to varsa ona, yoksa departman ekibine.
-# Cron / systemd timer ile saatlik çalıştırılmalıdır.
 WARN_THRESHOLD_PCT = 75
 
 
@@ -34,7 +30,6 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         now = timezone.now()
 
-        # Eşik öncesi cutoff'u önceliğe göre türet: created_at < now - hours * pct/100
         threshold_q = Q()
         for prio, hours in SLA_HOURS.items():
             cutoff = now - timedelta(hours=hours * WARN_THRESHOLD_PCT / 100)
@@ -47,18 +42,18 @@ class Command(BaseCommand):
             status__in=[Status.RESOLVED, Status.CLOSED, Status.ESCALATED],
         ).select_related('assigned_to', 'department', 'sender')
 
-        total = qs.count()
-        self.stdout.write(f'SLA uyarı adayı: {total} bilet (eşik=%{WARN_THRESHOLD_PCT})')
+        candidates = [t for t in qs if t.sla_progress_pct >= WARN_THRESHOLD_PCT]
+        self.stdout.write(f'SLA uyarı adayı: {len(candidates)} bilet (eşik=%{WARN_THRESHOLD_PCT})')
 
         if dry_run:
-            for t in qs:
+            for t in candidates:
                 self.stdout.write(f'  - {t.code} ({t.priority}) — {t.subject[:40]}')
             return
 
         notifications = []
         warned_ids = []
 
-        for t in qs:
+        for t in candidates:
             msg = (
                 f'⚠️ "{t.subject}" (#{t.pk}) bileti SLA hedefinin %{t.sla_progress_pct}\'ine ulaştı. '
                 f'Hedef: {t.sla_due_at.strftime("%d.%m.%Y %H:%M") if t.sla_due_at else "—"}'
@@ -74,8 +69,6 @@ class Command(BaseCommand):
             f'{len(warned_ids)} bilete uyarı gönderildi ({len(notifications)} bildirim).'
         ))
 
-    # Atanan personel varsa o, yoksa departman AGENT+MANAGER ekibi.
-    # Atanan da, sender da personel olmayabilir; sender'a uyarı göndermeyiz.
     def _recipients_for(self, ticket):
         if ticket.assigned_to_id:
             return [ticket.assigned_to]

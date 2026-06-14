@@ -50,7 +50,7 @@ class Command(BaseCommand):
                 ticket.auto_close()
                 TicketHistory.objects.create(
                     ticket=ticket,
-                    actor=None,  # sistem
+                    actor=None,
                     action=f'Bilet {AUTO_CLOSE_DAYS} gün içinde onay verilmediği için otomatik kapatıldı.',
                     action_type=TicketActionType.AUTO_CLOSED,
                 )

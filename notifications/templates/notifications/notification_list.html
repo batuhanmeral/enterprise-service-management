@@ -26,10 +26,11 @@
         {% for notification in notifications %}
             <div class="list-group-item d-flex justify-content-between align-items-start notification-item {% if not notification.is_read %}notification-unread border-start border-primary border-3{% else %}notification-read{% endif %}">
                 <div class="me-3">
-                    <div class="{% if not notification.is_read %}fw-medium{% else %}notification-read-text{% endif %}">
+                    <a href="{% url 'notifications:notification_detail' notification.pk %}"
+                       class="text-decoration-none text-body {% if not notification.is_read %}fw-medium{% else %}notification-read-text{% endif %}">
                         {{ notification.message }}
-                    </div>
-                    <small class="text-muted">
+                    </a>
+                    <small class="text-muted d-block">
                         <i class="bi bi-clock me-1"></i>{{ notification.created_at|date:"d.m.Y H:i" }}
                         {% if notification.ticket %}
                             · <a href="{% url 'tickets:ticket_detail' notification.ticket.pk %}" class="text-decoration-none">
@@ -39,11 +40,6 @@
                     </small>
                 </div>
                 <div class="flex-shrink-0 d-flex gap-1">
-                    <a href="{% url 'notifications:notification_detail' notification.pk %}"
-                       class="btn btn-sm btn-outline-dark"
-                       title="{% trans 'Detay' %}">
-                        <i class="bi bi-eye"></i>
-                    </a>
                     {% if not notification.is_read %}
                         <a href="{% url 'notifications:notification_mark_read' notification.pk %}"
                            class="btn btn-sm btn-outline-secondary"
