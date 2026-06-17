@@ -1,2 +1,6 @@
 *.html linguist-detectable=false
 *.css linguist-detectable=false
+
+# Shell scripts must keep LF endings so they run inside Linux containers.
+*.sh text eol=lf
+entrypoint.sh text eol=lf

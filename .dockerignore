@@ -1,0 +1,33 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local environment & secrets — never bake these into the image
+.env
+.env.*
+!.env.example
+
+# Developer tooling / docs
+.docs/
+.idea/
+.vscode/
+*.md
+LICENSE
+
+# Local data that must not leak into the image
+media/
+staticfiles/
+db.sqlite3
+
+# Docker meta
+Dockerfile
+.dockerignore
+docker-compose.yml

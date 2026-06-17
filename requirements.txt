@@ -5,3 +5,4 @@ python-dotenv==1.2.2
 openpyxl==3.1.5
 pillow==12.2.0
 weasyprint==68.1
+gunicorn==23.0.0

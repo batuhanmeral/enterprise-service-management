@@ -1,5 +1,7 @@
 import csv
 import io
+import os
+import sys
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 
@@ -15,6 +17,12 @@ from django.views.generic import TemplateView
 
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
+
+if sys.platform == 'win32':
+    _gtk_bin = os.environ.get('GTK_RUNTIME_DIR', r'C:\Program Files\GTK3-Runtime Win64\bin')
+    if os.path.isdir(_gtk_bin):
+        os.add_dll_directory(_gtk_bin)
+
 from weasyprint import HTML
 
 from departments.models import Department
