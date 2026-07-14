@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+    {% if form.instance.pk %}{% trans "Hazır Yanıt Düzenle" %}{% else %}{% trans "Yeni Hazır Yanıt" %}{% endif %} — Dispatch
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-4">
+                    {% if form.instance.pk %}
+                        <i class="bi bi-pencil me-2"></i>{% blocktrans with name=form.instance.title %}Edit Canned Response: {{ name }}{% endblocktrans %}
+                    {% else %}
+                        <i class="bi bi-plus-lg me-2"></i>{% trans "Yeni Hazır Yanıt Oluştur" %}
+                    {% endif %}
+                </h2>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">{% trans "Başlık" %}</label>
+                        <input type="text"
+                               name="{{ form.title.html_name }}"
+                               id="{{ form.title.id_for_label }}"
+                               class="form-control {% if form.title.errors %}is-invalid{% endif %}"
+                               value="{{ form.title.value|default:'' }}"
+                               maxlength="100"
+                               required>
+                        {% if form.title.errors %}
+                            <div class="invalid-feedback">{{ form.title.errors.0 }}</div>
+                        {% endif %}
+                        <small class="text-muted">{% trans "Personelin listede göreceği ad, örn. 'Şifre sıfırlama adımları'." %}</small>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.department.id_for_label }}" class="form-label">{% trans "Departman" %}</label>
+                            {{ form.department }}
+                            {% if form.department.errors %}
+                                <div class="text-danger small mt-1">{{ form.department.errors.0 }}</div>
+                            {% endif %}
+                            <small class="text-muted">{% trans "Boş bırakılırsa tüm departmanlar kullanabilir." %}</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.category.id_for_label }}" class="form-label">{% trans "Kategori" %} <span class="text-muted">({% trans "opsiyonel" %})</span></label>
+                            {{ form.category }}
+                            {% if form.category.errors %}
+                                <div class="text-danger small mt-1">{{ form.category.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.body.id_for_label }}" class="form-label">{% trans "Metin" %}</label>
+                        <textarea name="{{ form.body.html_name }}"
+                                  id="{{ form.body.id_for_label }}"
+                                  class="form-control {% if form.body.errors %}is-invalid{% endif %}"
+                                  rows="8"
+                                  maxlength="2000"
+                                  required>{{ form.body.value|default:'' }}</textarea>
+                        {% if form.body.errors %}
+                            <div class="invalid-feedback">{{ form.body.errors.0 }}</div>
+                        {% endif %}
+
+                        {# Yer tutucular — tıklandığında imlecin olduğu yere eklenir #}
+                        <div class="mt-2">
+                            <small class="text-muted d-block mb-1">{% trans "Yer tutucu ekle:" %}</small>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for token, label in placeholders %}
+                                    <button type="button"
+                                            class="btn btn-outline-secondary btn-sm placeholder-btn"
+                                            data-token="{{ token }}"
+                                            title="{{ label }}">
+                                        <code class="text-reset">{{ token }}</code>
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               name="{{ form.is_active.html_name }}"
+                               id="{{ form.is_active.id_for_label }}"
+                               {% if form.is_active.value %}checked{% endif %}>
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                            {% trans "Aktif" %}
+                            <small class="text-muted d-block">{% trans "Pasif yanıtlar bilet ekranında listelenmez." %}</small>
+                        </label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'tickets:canned_response_list' %}" class="btn btn-outline-secondary">
+                            {% trans "İptal" %}
+                        </a>
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-save me-1"></i>
+                            {% if form.instance.pk %}{% trans "Güncelle" %}{% else %}{% trans "Oluştur" %}{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const body = document.getElementById('{{ form.body.id_for_label }}');
+    document.querySelectorAll('.placeholder-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const token = btn.dataset.token;
+            const start = body.selectionStart;
+            const end = body.selectionEnd;
+            body.value = body.value.slice(0, start) + token + body.value.slice(end);
+            body.focus();
+            body.setSelectionRange(start + token.length, start + token.length);
+        });
+    });
+})();
+</script>
+{% endblock %}

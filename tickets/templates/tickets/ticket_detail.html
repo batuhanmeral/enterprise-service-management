@@ -321,11 +321,44 @@
                 <h6 class="text-muted mb-3">
                     <i class="bi bi-chat-dots me-1"></i>{% trans "Mesajlar" %}
                     {% if comments %}<span class="badge bg-secondary ms-1">{{ comments|length }}</span>{% endif %}
+                    {% if internal_note_count %}
+                        <span class="badge bg-warning text-dark ms-1" title="{% trans 'Bu biletteki dahili not sayısı' %}">
+                            <i class="bi bi-lock-fill me-1"></i>{{ internal_note_count }}
+                        </span>
+                    {% endif %}
                 </h6>
 
                 {% if comments %}
                     <div class="mb-3">
                         {% for comment in comments %}
+                            {# Dahili notlar sohbet hizasından çıkarılıp tam genişlikte, #}
+                            {# uyarı renginde gösterilir — talep sahibine gitmediği gözle ayırt edilsin. #}
+                            {% if comment.is_internal %}
+                                <div class="border-start border-warning border-4 bg-warning-subtle rounded p-2 px-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1 gap-3">
+                                        <small class="fw-medium">
+                                            <i class="bi bi-lock-fill text-warning-emphasis me-1"></i>
+                                            {% trans "Dahili Not" %} ·
+                                            {% if comment.author %}{{ comment.author.get_full_name|default:comment.author.username }}{% else %}{% trans "Silinmiş kullanıcı" %}{% endif %}
+                                        </small>
+                                        <small class="text-muted text-nowrap">{{ comment.created_at|date:"d.m.Y H:i" }}</small>
+                                    </div>
+                                    {% if comment.content %}
+                                        <p class="mb-0" style="white-space:pre-wrap;font-size:.9rem;">{{ comment.content }}</p>
+                                    {% endif %}
+                                    {% if comment.attachment %}
+                                        <div class="mt-1">
+                                            <a href="{{ comment.attachment.url }}" class="text-decoration-none text-body" target="_blank">
+                                                <i class="bi bi-paperclip me-1"></i>
+                                                <small>{{ comment.attachment.name|cut:"comment_attachments/" }}</small>
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="bi bi-eye-slash me-1"></i>{% trans "Talep sahibi bu notu görmez." %}
+                                    </small>
+                                </div>
+                            {% else %}
                             <div class="d-flex mb-3 {% if comment.author == ticket.sender %}flex-row{% else %}flex-row-reverse{% endif %}">
                                 <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                                      style="width:36px;height:36px;font-size:.85rem;">
@@ -355,6 +388,7 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            {% endif %}
                         {% endfor %}
                     </div>
                 {% else %}
@@ -363,29 +397,111 @@
 
                 <!-- Yorum formu (bilet kilitli değilse — CLOSED/ESCALATED'da kapalı) -->
                 {% if not ticket.is_locked %}
-                    <form method="post" action="{% url 'tickets:ticket_add_comment' ticket.pk %}" enctype="multipart/form-data">
+                    <form method="post" action="{% url 'tickets:ticket_add_comment' ticket.pk %}"
+                          enctype="multipart/form-data" id="comment-form">
                         {% csrf_token %}
+
+                        {# Hazır yanıtlar — metin yer tutucuları doldurulmuş halde gelir #}
+                        {% if canned_responses %}
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lightning-charge"></i>
+                                </span>
+                                <select class="form-select form-select-sm" id="canned-select">
+                                    <option value="">{% trans "Hazır yanıt seç..." %}</option>
+                                    {% for cr in canned_responses %}
+                                        <option value="{{ cr.pk }}" data-body="{{ cr.body }}">
+                                            {{ cr.title }} ({{ cr.scope }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="canned-insert">
+                                    {% trans "Ekle" %}
+                                </button>
+                            </div>
+                            <input type="hidden" name="canned_response" id="canned-used" value="">
+                        {% endif %}
+
                         <div class="mb-2">
                             <textarea name="content"
+                                      id="comment-content"
                                       class="form-control"
                                       rows="2"
                                       placeholder="{% trans 'Mesajınızı yazın...' %}"
                                       maxlength="2000"></textarea>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div class="d-flex align-items-center flex-wrap gap-2">
                                 <label for="comment_attachment" class="btn btn-outline-secondary btn-sm mb-0" title="{% trans 'Dosya ekle' %}">
                                     <i class="bi bi-paperclip me-1"></i>{% trans "Dosya Ekle" %}
                                 </label>
                                 <input type="file" name="comment_attachment" id="comment_attachment" class="d-none"
                                        onchange="document.getElementById('file-name-display').textContent = this.files[0]?.name || ''">
-                                <small id="file-name-display" class="text-muted ms-2"></small>
+                                <small id="file-name-display" class="text-muted"></small>
+
+                                {% if can_post_internal %}
+                                    <div class="form-check form-switch mb-0 ms-1">
+                                        <input class="form-check-input" type="checkbox" role="switch"
+                                               name="is_internal" value="1" id="is-internal-toggle">
+                                        <label class="form-check-label small" for="is-internal-toggle">
+                                            <i class="bi bi-lock me-1"></i>{% trans "Dahili not" %}
+                                        </label>
+                                    </div>
+                                {% endif %}
                             </div>
-                            <button type="submit" class="btn btn-dark btn-sm">
+                            <button type="submit" class="btn btn-dark btn-sm" id="comment-submit">
                                 <i class="bi bi-send me-1"></i>{% trans "Gönder" %}
                             </button>
                         </div>
+                        {% if can_post_internal %}
+                            <small class="text-muted d-block mt-1 d-none" id="internal-hint">
+                                <i class="bi bi-eye-slash me-1"></i>{% trans "Bu not yalnızca departman personeline görünür; talep sahibine bildirilmez." %}
+                            </small>
+                        {% endif %}
                     </form>
+
+                    <script>
+                    (function () {
+                        const textarea = document.getElementById('comment-content');
+
+                        // Hazır yanıt: mevcut metnin sonuna ekler, üzerine yazmaz.
+                        const select = document.getElementById('canned-select');
+                        const insertBtn = document.getElementById('canned-insert');
+                        const usedField = document.getElementById('canned-used');
+                        if (select && insertBtn && usedField) {
+                            insertBtn.addEventListener('click', function () {
+                                const opt = select.selectedOptions[0];
+                                if (!opt || !opt.value) return;
+                                const body = opt.dataset.body || '';
+                                textarea.value = textarea.value.trim()
+                                    ? textarea.value.replace(/\s+$/, '') + '\n\n' + body
+                                    : body;
+                                usedField.value = opt.value;
+                                textarea.focus();
+                                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                            });
+                        }
+
+                        // Dahili not anahtarı: gönder butonunu da işaretle, yanlışlıkla
+                        // dahili not yerine genel yanıt gönderilmesin.
+                        const toggle = document.getElementById('is-internal-toggle');
+                        const submit = document.getElementById('comment-submit');
+                        const hint = document.getElementById('internal-hint');
+                        if (toggle && submit) {
+                            const publicLabel = submit.innerHTML;
+                            const internalLabel =
+                                '<i class="bi bi-lock-fill me-1"></i>{% trans "Dahili Not Ekle" %}';
+                            toggle.addEventListener('change', function () {
+                                const on = toggle.checked;
+                                submit.innerHTML = on ? internalLabel : publicLabel;
+                                submit.classList.toggle('btn-dark', !on);
+                                submit.classList.toggle('btn-warning', on);
+                                textarea.classList.toggle('border-warning', on);
+                                if (hint) hint.classList.toggle('d-none', !on);
+                            });
+                        }
+                    })();
+                    </script>
                 {% endif %}
             </div>
         </div>
@@ -547,6 +663,41 @@
                         </span>
                     </div>
                 {% endif %}
+
+                {# İlk yanıt süresi (FRT) — iş saati cinsinden, hedefle karşılaştırmalı #}
+                <div class="mb-3">
+                    <small class="text-muted d-block">{% trans "İlk Yanıt" %}</small>
+                    {% if ticket.first_response_at %}
+                        <span>
+                            <i class="bi bi-reply me-1"></i>
+                            {{ ticket.first_response_label }}
+                            {% if ticket.first_response_breached %}
+                                <span class="badge bg-danger ms-1">{% trans "Hedef aşıldı" %}</span>
+                            {% else %}
+                                <span class="badge bg-success ms-1">{% trans "Hedefte" %}</span>
+                            {% endif %}
+                        </span>
+                        <small class="text-muted d-block">
+                            {{ ticket.first_response_at|date:"d.m.Y H:i" }}
+                        </small>
+                    {% elif ticket.awaiting_first_response %}
+                        <span>
+                            <i class="bi bi-hourglass-split me-1"></i>
+                            {% if ticket.first_response_breached %}
+                                <span class="badge bg-danger">{% trans "Yanıt bekliyor — hedef aşıldı" %}</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">{% trans "Yanıt bekliyor" %}</span>
+                            {% endif %}
+                        </span>
+                        {% if ticket.first_response_due_at %}
+                            <small class="text-muted d-block">
+                                {% trans "Hedef" %}: {{ ticket.first_response_due_at|date:"d.m.Y H:i" }}
+                            </small>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </div>
 
                 {# Aktif çalışma süresi — TicketHistory event'lerinden otomatik hesap (manuel girdi yok) #}
                 {% if ticket.work_duration_label != "—" %}

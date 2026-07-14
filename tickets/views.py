@@ -1,5 +1,6 @@
 from datetime import date as _date, timedelta
 
+from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -7,13 +8,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView, TemplateView
-from identity.views import AdminRequiredMixin
+from identity.views import AdminRequiredMixin, ManagerOrAdminRequiredMixin
 from django.urls import reverse_lazy
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib import messages
 from django.db.models import Q, Case, When, IntegerField, F
 
-from .models import Ticket, Status, Priority, TicketHistory, TicketActionType, TicketComment, TicketAttachment, Tag
+from .models import (
+    Ticket, Status, Priority, TicketHistory, TicketActionType, TicketComment,
+    TicketAttachment, Tag, CannedResponse,
+)
 from notifications.models import Notification
 from identity.models import Role, User as UserModel
 from identity.audit import audit_log, AuditCategory
@@ -109,6 +113,47 @@ def log_ticket_action(ticket, actor, action, request=None,
     )
 
 
+# Dahili notları yalnızca biletin sahibi departmanın personeli ve Admin görür.
+def _can_access_internal_notes(user, ticket):
+    # Admin sistem genelinde her şeyi görür (işlem geçmişi, tüm biletler) —
+    # dahili notlar da bu kuralın dışında değil.
+    if user.role == Role.ADMIN:
+        return True
+    # Talep sahibi kendi biletindeki dahili notu görmez; notun varlık sebebi
+    # tam olarak talep sahibinden bağımsız konuşabilmek. Bir personel kendi
+    # departmanına bilet açtığında o bilette talep sahibi konumundadır.
+    if user.pk == ticket.sender_id:
+        return False
+    return (
+        user.role in (Role.AGENT, Role.MANAGER)
+        and user.department_id is not None
+        and user.department_id == ticket.department_id
+    )
+
+
+# Dahili not bildirimi — yalnızca notu görebilecek kişilere gider. Ortak
+# _notify_department_team tek kullanıcı hariç tutabildiği için ayrı duruyor:
+# burada hem notu yazan hem talep sahibi listeden çıkmalı.
+def _notify_internal_note(ticket, author):
+    if not ticket.department_id:
+        return
+    recipients = UserModel.objects.filter(
+        department_id=ticket.department_id,
+        role__in=[Role.AGENT, Role.MANAGER],
+        is_active=True,
+    ).exclude(pk=author.pk)
+    if ticket.sender_id:
+        recipients = recipients.exclude(pk=ticket.sender_id)
+    message = (
+        f'🔒 "{ticket.subject}" (#{ticket.pk}) biletine '
+        f'{author.get_full_name() or author.username} dahili not ekledi.'
+    )
+    Notification.objects.bulk_create([
+        Notification(recipient=r, ticket=ticket, message=message)
+        for r in recipients
+    ])
+
+
 # Bilet listeleme - Rol bazlı filtreleme + sıralama
 class TicketListView(LoginRequiredMixin, ListView):
     model = Ticket
@@ -191,6 +236,14 @@ class TicketListView(LoginRequiredMixin, ListView):
         if self.request.GET.get('reopened') == '1':
             qs = qs.filter(reopen_count__gt=0)
 
+        # Hiç personel yanıtı almamış aktif biletler. İlk yanıt hedefinin
+        # aşılıp aşılmadığı iş saati hesabı gerektirdiği için SQL'de
+        # süzülemez; burada yalnızca "yanıtsız" kırılımı veriliyor.
+        if self.request.GET.get('awaiting_response') == '1':
+            qs = qs.filter(first_response_at__isnull=True).exclude(
+                status__in=[Status.CLOSED, Status.ESCALATED],
+            )
+
         sort = self.request.GET.get('sort', '-created_at')
         if sort == 'priority':
             qs = qs.annotate(_priority_rank=PRIORITY_ORDER).order_by('-_priority_rank', '-created_at')
@@ -222,6 +275,7 @@ class TicketListView(LoginRequiredMixin, ListView):
         context['current_assigned_to'] = self.request.GET.get('assigned_to', '')
         context['current_tag'] = self.request.GET.get('tag', '')
         context['current_overdue'] = self.request.GET.get('overdue', '')
+        context['current_awaiting_response'] = self.request.GET.get('awaiting_response', '')
         context['tags'] = Tag.objects.all().order_by('name')
         context['current_sort'] = self.request.GET.get('sort', '-created_at')
         context['can_bulk_action'] = user.role in (Role.MANAGER, Role.ADMIN)
@@ -440,10 +494,33 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['history'] = self.object.history.select_related('actor').all()
-        context['comments'] = self.object.comments.select_related('author').all()
 
         user = self.request.user
         ticket = self.object
+
+        # Dahili notlar yetkisiz kullanıcıya hiç gönderilmez: template'te
+        # saklamak yerine sorgudan çıkarılır.
+        sees_internal = _can_access_internal_notes(user, ticket)
+        comments = ticket.comments.select_related('author')
+        if not sees_internal:
+            comments = comments.filter(is_internal=False)
+        context['comments'] = comments
+        context['can_post_internal'] = sees_internal and not ticket.is_locked
+        context['internal_note_count'] = (
+            ticket.comments.filter(is_internal=True).count() if sees_internal else 0
+        )
+
+        # Hazır yanıtlar — yer tutucular bilete göre doldurulmuş halde gider.
+        if user.role in (Role.AGENT, Role.MANAGER, Role.ADMIN):
+            context['canned_responses'] = [
+                {
+                    'pk': cr.pk,
+                    'title': cr.title,
+                    'scope': cr.scope_label,
+                    'body': cr.render_for(ticket, agent=user),
+                }
+                for cr in CannedResponse.objects.visible_to(user).select_related('department')
+            ]
         can_assign = (
             ticket.status not in (Status.RESOLVED, Status.CLOSED, Status.ESCALATED)
             and ticket.department_id is not None
@@ -783,7 +860,8 @@ class TicketUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
 
-# Bilet yorum ekleme — Talep sahibi veya ilgili personel
+# Bilet yorum ekleme — Talep sahibi veya ilgili personel.
+# Dahili not gönderimi ek yetki ister; ilk personel yanıtı FRT'yi damgalar.
 @login_required
 @require_POST
 def ticket_add_comment_view(request, pk):
@@ -800,6 +878,12 @@ def ticket_add_comment_view(request, pk):
 
     content = request.POST.get('content', '').strip()
     attachment = request.FILES.get('comment_attachment')
+    is_internal = request.POST.get('is_internal') == '1'
+
+    # Yetkisiz bir dahili not talebini sessizce genel yoruma düşürmek, gizli
+    # kalması istenen metni talep sahibine açardı — o yüzden reddediyoruz.
+    if is_internal and not _can_access_internal_notes(user, ticket):
+        return HttpResponseForbidden('Dahili not ekleme yetkiniz bulunmamaktadır.')
 
     if not content and not attachment:
         messages.warning(request, 'Mesaj veya dosya eklerinden en az birini gönderin.')
@@ -811,8 +895,27 @@ def ticket_add_comment_view(request, pk):
 
     TicketComment.objects.create(
         ticket=ticket, author=user, content=content,
-        attachment=attachment,
+        attachment=attachment, is_internal=is_internal,
     )
+
+    # Hazır yanıt kullanımını say — hangi şablonların işe yaradığını gösterir.
+    canned_id = request.POST.get('canned_response')
+    if canned_id and canned_id.isdigit():
+        CannedResponse.objects.visible_to(user).filter(pk=int(canned_id)).update(
+            usage_count=F('usage_count') + 1,
+        )
+
+    is_staff_reply = user.role in (Role.AGENT, Role.MANAGER, Role.ADMIN)
+
+    # İlk yanıt damgası: yalnızca talep sahibi dışındaki personelin *genel*
+    # yorumu sayılır. Dahili not talep sahibine ulaşmadığı için yanıt değildir.
+    if is_staff_reply and not is_internal and user.pk != ticket.sender_id:
+        ticket.mark_first_response()
+
+    if is_internal:
+        _notify_internal_note(ticket, user)
+        messages.success(request, 'Dahili not eklendi. Talep sahibi bu notu görmeyecek.')
+        return redirect('tickets:ticket_detail', pk=ticket.pk)
 
     if user == ticket.sender:
         recipient = ticket.assigned_to
@@ -1303,4 +1406,150 @@ class TagDeleteView(AdminRequiredMixin, DeleteView):
         response = super().form_valid(form)
         audit_log(self.request, AuditCategory.OTHER, f'Etiket silindi: {tag_name}')
         messages.success(self.request, f'"{tag_name}" etiketi başarıyla silindi.')
+        return response
+
+
+# ---------------------------------------------------------------------------
+# Hazır Yanıtlar (Canned Responses)
+# ---------------------------------------------------------------------------
+# Admin tüm yanıtları yönetir; Manager yalnızca kendi departmanının
+# yanıtlarını. Departmansız ("Genel") yanıtlar Admin'e aittir.
+
+
+class CannedResponseForm(forms.ModelForm):
+
+    class Meta:
+        model = CannedResponse
+        fields = ['title', 'body', 'department', 'category', 'is_active']
+
+    def __init__(self, *args, user=None, **kwargs):
+        from departments.models import Department, Category
+        super().__init__(*args, **kwargs)
+        self.user = user
+        self.fields['department'].queryset = Department.objects.order_by('name')
+        self.fields['department'].empty_label = 'Genel (tüm departmanlar)'
+        self.fields['category'].required = False
+        for name in ('department', 'category'):
+            self.fields[name].widget.attrs['class'] = 'form-select'
+
+        if user is not None and user.role == Role.MANAGER:
+            # Manager kendi departmanı dışına yanıt yazamaz; alan sabitlenir.
+            self.fields['department'].queryset = Department.objects.filter(
+                pk=user.department_id
+            )
+            self.fields['department'].empty_label = None
+            self.fields['department'].initial = user.department_id
+            self.fields['department'].required = True
+            self.fields['category'].queryset = Category.objects.filter(
+                department_id=user.department_id
+            ).order_by('name')
+        else:
+            self.fields['category'].queryset = (
+                Category.objects
+                .select_related('department')
+                .order_by('department__name', 'name')
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        department = cleaned.get('department')
+        category = cleaned.get('category')
+        if category and department and category.department_id != department.pk:
+            self.add_error('category', 'Seçilen kategori bu departmana ait değil.')
+        if category and not department:
+            self.add_error(
+                'category',
+                'Kategori seçmek için önce bir departman seçin.',
+            )
+        if self.user is not None and self.user.role == Role.MANAGER:
+            if department is None or department.pk != self.user.department_id:
+                self.add_error(
+                    'department',
+                    'Yalnızca kendi departmanınız için hazır yanıt tanımlayabilirsiniz.',
+                )
+        return cleaned
+
+
+class CannedResponseFormMixin:
+    model = CannedResponse
+    form_class = CannedResponseForm
+    template_name = 'tickets/canned_response_form.html'
+    success_url = reverse_lazy('tickets:canned_response_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['placeholders'] = CannedResponse.PLACEHOLDERS
+        return context
+
+
+class CannedResponseListView(ManagerOrAdminRequiredMixin, ListView):
+    template_name = 'tickets/canned_response_list.html'
+    context_object_name = 'responses'
+
+    def get_queryset(self):
+        return (
+            CannedResponse.objects
+            .editable_by(self.request.user)
+            .select_related('department', 'category', 'created_by')
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['placeholders'] = CannedResponse.PLACEHOLDERS
+        return context
+
+
+class CannedResponseCreateView(ManagerOrAdminRequiredMixin, CannedResponseFormMixin, CreateView):
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        response = super().form_valid(form)
+        audit_log(
+            self.request, AuditCategory.OTHER,
+            f'Hazır yanıt oluşturuldu: {self.object.title}',
+            target=self.object, department=self.object.department,
+        )
+        messages.success(self.request, f'"{self.object.title}" hazır yanıtı oluşturuldu.')
+        return response
+
+
+class CannedResponseUpdateView(ManagerOrAdminRequiredMixin, CannedResponseFormMixin, UpdateView):
+
+    def get_queryset(self):
+        return CannedResponse.objects.editable_by(self.request.user)
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        audit_log(
+            self.request, AuditCategory.OTHER,
+            f'Hazır yanıt güncellendi: {self.object.title}',
+            target=self.object, department=self.object.department,
+        )
+        messages.success(self.request, f'"{self.object.title}" hazır yanıtı güncellendi.')
+        return response
+
+
+class CannedResponseDeleteView(ManagerOrAdminRequiredMixin, DeleteView):
+    model = CannedResponse
+    template_name = 'tickets/canned_response_confirm_delete.html'
+    context_object_name = 'canned_response'
+    success_url = reverse_lazy('tickets:canned_response_list')
+
+    def get_queryset(self):
+        return CannedResponse.objects.editable_by(self.request.user)
+
+    def form_valid(self, form):
+        title = self.object.title
+        department = self.object.department
+        response = super().form_valid(form)
+        audit_log(
+            self.request, AuditCategory.OTHER,
+            f'Hazır yanıt silindi: {title}', department=department,
+        )
+        messages.success(self.request, f'"{title}" hazır yanıtı silindi.')
         return response

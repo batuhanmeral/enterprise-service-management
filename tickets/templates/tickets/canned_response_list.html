@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Hazır Yanıtlar" %} — Dispatch{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h4 mb-0">
+        <i class="bi bi-lightning-charge me-2"></i>{% trans "Hazır Yanıtlar" %}
+    </h1>
+    <a href="{% url 'tickets:canned_response_create' %}" class="btn btn-dark">
+        <i class="bi bi-plus-lg me-1"></i>{% trans "Yeni Hazır Yanıt" %}
+    </a>
+</div>
+
+<div class="alert alert-light border small">
+    <i class="bi bi-info-circle me-1"></i>
+    {% trans "Hazır yanıtlar bilet detayındaki mesaj kutusundan tek tıkla eklenir. Metne yer tutucu koyabilirsiniz:" %}
+    {% for token, label in placeholders %}
+        <code>{{ token }}</code>{% if not forloop.last %}, {% endif %}
+    {% endfor %}
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        {% if responses %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>{% trans "Başlık" %}</th>
+                            <th>{% trans "Kapsam" %}</th>
+                            <th>{% trans "Kategori" %}</th>
+                            <th class="text-center">{% trans "Kullanım" %}</th>
+                            <th class="text-center">{% trans "Durum" %}</th>
+                            <th class="text-end pe-4">{% trans "İşlem" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cr in responses %}
+                            <tr>
+                                <td>
+                                    <span class="fw-medium">{{ cr.title }}</span>
+                                    <small class="d-block text-muted" style="max-width:480px;">
+                                        {{ cr.body|truncatechars:110 }}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if cr.department %}
+                                        <span class="badge bg-secondary">{{ cr.department.name }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info text-dark">{% trans "Genel" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted">{{ cr.category.name|default:"—" }}</td>
+                                <td class="text-center">
+                                    {% if cr.usage_count %}
+                                        <span class="badge bg-dark">{{ cr.usage_count }}</span>
+                                    {% else %}
+                                        <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if cr.is_active %}
+                                        <span class="badge bg-success">{% trans "Aktif" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{% trans "Pasif" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'tickets:canned_response_update' cr.pk %}"
+                                       class="btn btn-outline-dark btn-sm me-1" title="{% trans 'Düzenle' %}">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'tickets:canned_response_delete' cr.pk %}"
+                                       class="btn btn-outline-danger btn-sm" title="{% trans 'Sil' %}">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-center text-muted">
+                <p class="mb-0">{% trans "Henüz hazır yanıt tanımlanmamış." %}</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -12,6 +12,11 @@
         <a href="{% url 'tickets:kanban' %}" class="btn btn-outline-dark">
             <i class="bi bi-kanban me-1"></i>{% trans "Kanban" %}
         </a>
+        {% if user.role == 'MANAGER' or user.role == 'ADMIN' %}
+            <a href="{% url 'tickets:canned_response_list' %}" class="btn btn-outline-dark">
+                <i class="bi bi-lightning-charge me-1"></i>{% trans "Hazır Yanıtlar" %}
+            </a>
+        {% endif %}
         {% if user.role == 'ADMIN' %}
             <a href="{% url 'tickets:tag_list' %}" class="btn btn-outline-dark">
                 <i class="bi bi-tags me-1"></i>{% trans "Etiketleri Yönet" %}
@@ -152,6 +157,13 @@
                            id="filter_overdue" {% if current_overdue == '1' %}checked{% endif %}>
                     <label class="form-check-label small" for="filter_overdue">
                         <i class="bi bi-clock-history text-danger me-1"></i>{% trans "Sadece SLA aşan" %}
+                    </label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="awaiting_response" value="1"
+                           id="filter_awaiting_response" {% if current_awaiting_response == '1' %}checked{% endif %}>
+                    <label class="form-check-label small" for="filter_awaiting_response">
+                        <i class="bi bi-reply text-warning me-1"></i>{% trans "Yanıt bekleyen" %}
                     </label>
                 </div>
             </div>

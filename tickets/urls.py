@@ -42,6 +42,11 @@ urlpatterns = [
 
     path('attachments/<int:pk>/delete/', views.ticket_attachment_delete_view, name='ticket_attachment_delete'),
 
+    path('canned-responses/', views.CannedResponseListView.as_view(), name='canned_response_list'),
+    path('canned-responses/create/', views.CannedResponseCreateView.as_view(), name='canned_response_create'),
+    path('canned-responses/<int:pk>/update/', views.CannedResponseUpdateView.as_view(), name='canned_response_update'),
+    path('canned-responses/<int:pk>/delete/', views.CannedResponseDeleteView.as_view(), name='canned_response_delete'),
+
     path('tags/', views.TagListView.as_view(), name='tag_list'),
     path('tags/create/', views.TagCreateView.as_view(), name='tag_create'),
     path('tags/<int:pk>/update/', views.TagUpdateView.as_view(), name='tag_update'),
