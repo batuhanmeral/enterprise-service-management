@@ -35,6 +35,15 @@ SLA_HOURS = {
     Priority.LOW: 168,
 }
 
+# İlk yanıt (First Response Time) hedefleri — SLA_HOURS gibi iş saati cinsinden.
+# Çözüm SLA'sından belirgin şekilde kısa: talep sahibi biletin görüldüğünü hızlı bilmeli.
+FIRST_RESPONSE_SLA_HOURS = {
+    Priority.URGENT: 1,
+    Priority.HIGH: 4,
+    Priority.NORMAL: 8,
+    Priority.LOW: 24,
+}
+
 WORK_DAY_START = time(9, 0)
 WORK_DAY_END = time(18, 0)
 WORK_DAYS = frozenset({0, 1, 2, 3, 4})
@@ -86,6 +95,20 @@ def business_seconds_between(start, end):
                 total += (seg_end - seg_start).total_seconds()
         cur = (cur + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return total
+
+
+def format_duration_short(seconds):
+    secs = int(seconds or 0)
+    if secs <= 0:
+        return '—'
+    days, rem = divmod(secs, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes = rem // 60
+    if days:
+        return f'{days} gün {hours} saat' if hours else f'{days} gün'
+    if hours:
+        return f'{hours} saat {minutes} dk' if minutes else f'{hours} saat'
+    return f'{minutes} dk' if minutes else '< 1 dk'
 
 
 class Ticket(models.Model):
@@ -153,6 +176,12 @@ class Ticket(models.Model):
         blank=True,
         null=True,
         verbose_name='Çözüldü Tarihi',
+    )
+
+    first_response_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='İlk Yanıt Tarihi',
     )
 
     reopen_count = models.PositiveSmallIntegerField(
@@ -235,6 +264,7 @@ class Ticket(models.Model):
             models.Index(fields=['sender'], name='ticket_sender_idx'),
             models.Index(fields=['assigned_to', 'status'], name='ticket_assigned_status_idx'),
             models.Index(fields=['status', 'closed_at'], name='ticket_status_closedat_idx'),
+            models.Index(fields=['first_response_at'], name='ticket_first_resp_idx'),
         ]
 
     def __str__(self):
@@ -260,6 +290,46 @@ class Ticket(models.Model):
         if not self.sla_due_at:
             return False
         return timezone.now() > self.sla_due_at
+
+    @property
+    def first_response_due_at(self):
+        if not self.created_at:
+            return None
+        hours = FIRST_RESPONSE_SLA_HOURS.get(
+            self.priority, FIRST_RESPONSE_SLA_HOURS[Priority.NORMAL]
+        )
+        return add_business_hours(self.created_at, hours)
+
+    @property
+    def first_response_seconds(self):
+        # İlk yanıt süresi de SLA gibi iş saati cinsinden ölçülür: hafta sonu
+        # veya mesai dışında geçen süre personelin hanesine yazılmaz.
+        if not self.created_at or not self.first_response_at:
+            return None
+        return business_seconds_between(self.created_at, self.first_response_at)
+
+    @property
+    def first_response_label(self):
+        secs = self.first_response_seconds
+        return format_duration_short(secs) if secs is not None else '—'
+
+    @property
+    def first_response_breached(self):
+        # Yanıtlanmış bilet hedefi aştı mı; henüz yanıtlanmamışsa hedef geçti mi.
+        due = self.first_response_due_at
+        if not due:
+            return False
+        if self.first_response_at:
+            return self.first_response_at > due
+        if self.status in (Status.CLOSED, Status.ESCALATED):
+            return False
+        return timezone.now() > due
+
+    @property
+    def awaiting_first_response(self):
+        return self.first_response_at is None and self.status not in (
+            Status.CLOSED, Status.ESCALATED,
+        )
 
     @property
     def auto_close_due_at(self):
@@ -332,6 +402,15 @@ class Ticket(models.Model):
             parts.append(f'{minutes} dk')
         return ' '.join(parts) if parts else '< 1 dk'
 
+    def mark_first_response(self, at=None):
+        """İlk personel yanıtını damgalar. Idempotent: yalnızca boşsa yazar,
+        böylece sonraki yanıtlar metriği bozmaz. Yazdıysa True döner."""
+        if self.first_response_at is not None:
+            return False
+        self.first_response_at = at or timezone.now()
+        self.save(update_fields=['first_response_at', 'updated_at'])
+        return True
+
     def take_into_process(self, personnel):
         self.assigned_to = personnel
         self.status = Status.IN_PROGRESS
@@ -402,10 +481,15 @@ class Ticket(models.Model):
         self.resolved_at = timezone.now()
         self.resolution_confirmed = None
         self.closed_at = None
-        self.save(update_fields=[
+        fields = [
             'status', 'resolution_note', 'resolved_at',
             'resolution_confirmed', 'closed_at', 'updated_at',
-        ])
+        ]
+        # Hiç yorum yazılmadan çözülen bilette çözüm, ilk yanıtın kendisidir.
+        if self.first_response_at is None:
+            self.first_response_at = self.resolved_at
+            fields.append('first_response_at')
+        self.save(update_fields=fields)
 
     def confirm_resolution(self):
         self.status = Status.CLOSED
@@ -544,6 +628,13 @@ class TicketComment(models.Model):
         blank=True,
     )
 
+    is_internal = models.BooleanField(
+        default=False,
+        verbose_name='Dahili Not',
+        help_text='Yalnızca ilgili departmanın personeli ve Admin görür; '
+                  'talep sahibine gösterilmez.',
+    )
+
     attachment = models.FileField(
         upload_to='comment_attachments/%Y/%m/',
         blank=True,
@@ -560,10 +651,157 @@ class TicketComment(models.Model):
         verbose_name = 'Bilet Yorumu'
         verbose_name_plural = 'Bilet Yorumları'
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['ticket', 'is_internal'], name='comment_ticket_internal_idx'),
+        ]
 
     def __str__(self):
         author_name = self.author.username if self.author else 'Anonim'
-        return f"#{self.ticket_id} — {author_name}: {self.content[:50]}"
+        prefix = '[DAHİLİ] ' if self.is_internal else ''
+        return f"#{self.ticket_id} — {prefix}{author_name}: {self.content[:50]}"
+
+
+class CannedResponseQuerySet(models.QuerySet):
+
+    def visible_to(self, user):
+        """Kullanıcının kullanabileceği hazır yanıtlar: departmansız olanlar
+        (genel) + kendi departmanına ait olanlar. Admin hepsini görür."""
+        from identity.models import Role
+        qs = self.filter(is_active=True)
+        if user.role == Role.ADMIN:
+            return qs
+        if user.role not in (Role.AGENT, Role.MANAGER):
+            return self.none()
+        return qs.filter(
+            models.Q(department__isnull=True) | models.Q(department_id=user.department_id)
+        )
+
+    def editable_by(self, user):
+        """Yönetilebilir hazır yanıtlar: Admin hepsini, Manager yalnızca kendi
+        departmanına ait olanları düzenler (genel olanlar Admin'e aittir)."""
+        from identity.models import Role
+        if user.role == Role.ADMIN:
+            return self.all()
+        if user.role == Role.MANAGER and user.department_id:
+            return self.filter(department_id=user.department_id)
+        return self.none()
+
+
+class CannedResponse(models.Model):
+    """Personelin yoruma tek tıkla ekleyebileceği şablon metin.
+
+    department boşsa yanıt geneldir (tüm departmanlar kullanabilir); doluysa
+    yalnızca o departmanın personeline görünür.
+    """
+
+    PLACEHOLDERS = [
+        ('{{talep_sahibi}}', 'Talep sahibinin adı'),
+        ('{{personel}}', 'Yanıtı ekleyen personelin adı'),
+        ('{{bilet_kodu}}', 'Bilet kodu (TIC-0001)'),
+        ('{{konu}}', 'Bilet konusu'),
+        ('{{departman}}', 'Biletin departmanı'),
+    ]
+
+    title = models.CharField(
+        max_length=100,
+        verbose_name='Başlık',
+    )
+
+    body = models.TextField(
+        max_length=2000,
+        verbose_name='Metin',
+    )
+
+    department = models.ForeignKey(
+        'departments.Department',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='canned_responses',
+        verbose_name='Departman',
+        help_text='Boş bırakılırsa tüm departmanlar kullanabilir.',
+    )
+
+    category = models.ForeignKey(
+        'departments.Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='canned_responses',
+        verbose_name='Kategori',
+        help_text='Yalnızca bilgi amaçlı daraltma; zorunlu değildir.',
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Aktif',
+    )
+
+    usage_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Kullanım Sayısı',
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='canned_responses',
+        verbose_name='Oluşturan',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Oluşturulma Tarihi')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Güncellenme Tarihi')
+
+    objects = CannedResponseQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = 'Hazır Yanıt'
+        verbose_name_plural = 'Hazır Yanıtlar'
+        ordering = ['department__name', 'title']
+        constraints = [
+            # Departmana bağlı yanıtlarda başlık departman içinde tekil.
+            models.UniqueConstraint(
+                fields=['department', 'title'],
+                condition=models.Q(department__isnull=False),
+                name='cannedresponse_dept_title_uniq',
+            ),
+            # Genel (departmansız) yanıtlar için ayrı kısıt: NULL'lar birbirinden
+            # farklı sayıldığı için tek bir unique_together bunu yakalamaz.
+            models.UniqueConstraint(
+                fields=['title'],
+                condition=models.Q(department__isnull=True),
+                name='cannedresponse_global_title_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        scope = self.department.name if self.department else 'Genel'
+        return f'{scope} → {self.title}'
+
+    @property
+    def scope_label(self):
+        return self.department.name if self.department else 'Genel'
+
+    def render_for(self, ticket, agent=None):
+        """Şablondaki yer tutucuları bilet verisiyle doldurur."""
+        sender = ticket.sender
+        values = {
+            '{{talep_sahibi}}': (
+                (sender.get_full_name() or sender.username) if sender else ''
+            ),
+            '{{personel}}': (
+                (agent.get_full_name() or agent.username) if agent else ''
+            ),
+            '{{bilet_kodu}}': ticket.code,
+            '{{konu}}': ticket.subject,
+            '{{departman}}': ticket.department.name if ticket.department else '',
+        }
+        body = self.body
+        for key, value in values.items():
+            body = body.replace(key, value)
+        return body
 
 
 class TicketActionType(models.TextChoices):
