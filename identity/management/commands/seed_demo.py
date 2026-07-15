@@ -26,7 +26,7 @@ from django.utils import timezone
 from departments.models import Department, Category
 from tickets.models import (
     Ticket, Status, Priority, Tag, TicketComment, TicketHistory,
-    TicketActionType, SLA_HOURS, add_business_hours,
+    TicketActionType, SLA_HOURS, CannedResponse, add_business_hours,
 )
 from notifications.models import Notification
 from identity.models import Role, AuditLog
@@ -126,6 +126,68 @@ COMMENTS = [
     'Departman yöneticisine ilettim, yarın geri dönüş yapacağım.',
     'Tedarikçi ile iletişime geçtim, 24 saat içinde yanıt bekliyoruz.',
 ]
+
+
+# Dahili notlar: talep sahibine gitmeyen, ekip içi konuşma tonunda metinler.
+INTERNAL_NOTES = [
+    'Aynı kullanıcıdan bu ay üçüncü benzer talep — kök nedene bakmak gerekiyor.',
+    'Tedarikçi faturası henüz gelmedi, kapatmadan önce muhasebeye sormalıyım.',
+    'Kullanıcının yetkisi eksik görünüyor ama sebebini yazmadan önce teyit edeyim.',
+    'Sunucu logunda ilgisiz bir hata da var, ayrı bilet açacağım.',
+    'Bu konuyu yönetici onayı olmadan kapatmıyoruz, hatırlatma notu.',
+    'Geçici çözüm uygulandı; kalıcı düzeltme önümüzdeki bakım penceresinde.',
+    'Kullanıcı telefonda agresifti, konuşmayı yazılı kanala taşıdım.',
+]
+
+
+# (başlık, metin) — departman bazlı hazır yanıtlar; None anahtarı genel yanıtlar.
+CANNED_RESPONSES = {
+    None: [
+        ('Talep alındı', 'Merhaba {{talep_sahibi}},\n\n{{bilet_kodu}} numaralı '
+                         'talebinizi aldık, inceliyoruz. En kısa sürede dönüş '
+                         'yapacağız.\n\nİyi çalışmalar,\n{{personel}}'),
+        ('Ek bilgi talebi', 'Merhaba {{talep_sahibi}},\n\n"{{konu}}" konulu '
+                            'talebinizi ilerletebilmek için ekran görüntüsü ve '
+                            'hatanın tam saatini paylaşabilir misiniz?\n\n'
+                            'Teşekkürler,\n{{personel}}'),
+        ('Çözüldü — kapatma', 'Merhaba {{talep_sahibi}},\n\n{{bilet_kodu}} '
+                              'numaralı talebiniz çözüldü. Sorun tekrarlarsa bu '
+                              'bilet üzerinden yazmanız yeterli.\n\n{{personel}}'),
+    ],
+    'Bilgi İşlem': [
+        ('Şifre sıfırlama', 'Şifreniz sıfırlandı. İlk girişte sistem yeni bir '
+                            'şifre belirlemenizi isteyecek. Şifrenizi kimseyle '
+                            'paylaşmayın.\n\n{{personel}}'),
+        ('VPN kurulum adımları', 'VPN istemcisini şirket portalından indirip '
+                                 'kullanıcı adınızla giriş yapabilirsiniz. '
+                                 'Bağlantı sorununda hata kodunu bu bilete '
+                                 'yazın.\n\n{{personel}}'),
+        ('Donanım değişimi planlandı', 'Cihaz değişiminiz için saha ekibi sizinle '
+                                       'iletişime geçecek. Lütfen verilerinizi '
+                                       'ağ sürücüsüne yedekleyin.\n\n{{personel}}'),
+    ],
+    'İnsan Kaynakları': [
+        ('İzin talebi alındı', 'İzin talebiniz yöneticinizin onayına gönderildi. '
+                               'Onay sonrası bordro sistemine otomatik '
+                               'işlenecek.\n\n{{personel}}'),
+        ('Belge hazırlanıyor', 'Talep ettiğiniz belge hazırlanıyor; iki iş günü '
+                               'içinde kurumsal e-postanıza ileteceğiz.\n\n'
+                               '{{personel}}'),
+    ],
+    'Muhasebe': [
+        ('Masraf formu eksik', 'Masraf beyanınızda fatura görseli eksik. '
+                               'Formu tamamlayıp bu bilete ekler misiniz?\n\n'
+                               '{{personel}}'),
+        ('Ödeme takvimi', 'Ödemeniz bir sonraki ödeme döneminde gerçekleşecek. '
+                          'Mutabakat tamamlandığında bilgilendirileceksiniz.\n\n'
+                          '{{personel}}'),
+    ],
+    'İdari İşler': [
+        ('Ofis talebi alındı', 'Talebiniz idari işler ekibine iletildi; temin '
+                               'süresi hakkında bu bilet üzerinden bilgi '
+                               'vereceğiz.\n\n{{personel}}'),
+    ],
+}
 
 
 RESOLUTION_NOTES = [
@@ -244,6 +306,7 @@ class Command(BaseCommand):
         departments = self._create_departments()
         categories = self._create_categories(departments)
         tags = self._create_tags()
+        canned = self._create_canned_responses(departments, admin)
         users = self._create_users(departments, opts['users'])
         tickets = self._create_tickets(
             users, departments, categories, tags, admin,
@@ -269,7 +332,11 @@ class Command(BaseCommand):
             f'CLOSED: {status_counter.get(Status.CLOSED, 0)}, '
             f'ESCALATED: {escalated}\n'
             f'    └─ {csat_count} CSAT puanı, {reopened} yeniden açılmış bilet\n'
-            f'  • {TicketComment.objects.count()} yorum, {TicketHistory.objects.count()} geçmiş\n'
+            f'  • {TicketComment.objects.count()} yorum '
+            f'({TicketComment.objects.filter(is_internal=True).count()} dahili not)'
+            f', {TicketHistory.objects.count()} geçmiş\n'
+            f'  • {len(canned)} hazır yanıt, '
+            f'{sum(1 for t in tickets if t.first_response_at)} bilette ilk yanıt damgası\n'
             f'  • {Notification.objects.count()} bildirim, {AuditLog.objects.count()} audit log\n'
             f'\nGiriş bilgileri: admin/admin123 — diğerleri pass123\n'
         ))
@@ -281,6 +348,7 @@ class Command(BaseCommand):
         TicketComment.objects.all().delete()
         TicketHistory.objects.all().delete()
         Ticket.objects.all().delete()
+        CannedResponse.objects.all().delete()
         Tag.objects.all().delete()
         Category.objects.all().delete()
         Department.objects.all().delete()
@@ -335,6 +403,22 @@ class Command(BaseCommand):
             t, _ = Tag.objects.get_or_create(name=name, defaults={'color': color})
             tags.append(t)
         return tags
+
+    def _create_canned_responses(self, departments, admin):
+        by_name = {d.name: d for d in departments}
+        created = []
+        for dept_name, entries in CANNED_RESPONSES.items():
+            department = by_name.get(dept_name) if dept_name else None
+            # Departman adı bu demo setinde yoksa yanıtı atla (genel olanlar hep girer).
+            if dept_name and department is None:
+                continue
+            for title, body in entries:
+                cr, _ = CannedResponse.objects.get_or_create(
+                    department=department, title=title,
+                    defaults={'body': body, 'created_by': admin},
+                )
+                created.append(cr)
+        return created
 
     def _create_users(self, departments, total):
         users = []
@@ -478,6 +562,17 @@ class Command(BaseCommand):
             )
             _set_history_ts(h, take_at)
 
+            # İlk yanıt damgası: personel üstlendikten kısa süre sonra talep
+            # sahibine döner. Biletlerin %12'si bilinçli olarak yanıtsız
+            # bırakılıyor — panodaki "yanıt bekleyen" metriği boş kalmasın.
+            first_response_at = None
+            if random.random() > 0.12:
+                first_response_at = take_at + timedelta(
+                    minutes=random.randint(10, 20 * 60)
+                )
+                t.first_response_at = first_response_at
+                t.save(update_fields=['first_response_at'])
+
             if target_status == Status.IN_PROGRESS:
                 # Bazı IN_PROGRESS biletlerinde yorum bırak
                 self._maybe_add_comment(t, sender, agent, take_at)
@@ -490,7 +585,13 @@ class Command(BaseCommand):
             t.status = Status.RESOLVED
             t.resolved_at = resolved_at
             t.resolution_note = resolution_note
-            t.save(update_fields=['status', 'resolved_at', 'resolution_note'])
+            if t.first_response_at is None:
+                # mark_resolved() ile aynı kural: yorumsuz çözülen bilette
+                # çözümün kendisi ilk yanıttır.
+                t.first_response_at = resolved_at
+            t.save(update_fields=[
+                'status', 'resolved_at', 'resolution_note', 'first_response_at',
+            ])
             h = TicketHistory.objects.create(
                 ticket=t, actor=agent,
                 action=f'Bilet çözüldü olarak işaretlendi: {resolution_note[:100]}',
@@ -633,9 +734,12 @@ class Command(BaseCommand):
             commenter = random.choice([sender, agent]) if agent else sender
             if not commenter:
                 continue
+            # Yalnızca personel dahili not yazabilir; yorumların ~%25'i dahili.
+            is_internal = commenter is agent and random.random() < 0.25
             c = TicketComment.objects.create(
                 ticket=ticket, author=commenter,
-                content=random.choice(COMMENTS),
+                content=random.choice(INTERNAL_NOTES if is_internal else COMMENTS),
+                is_internal=is_internal,
             )
             # Yorum zamanını biletin ilgili zamanına yakın çek
             offset = timedelta(hours=random.randint(1, 48))
