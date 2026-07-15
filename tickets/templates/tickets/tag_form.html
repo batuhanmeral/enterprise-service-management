@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block title %}
-    {% if form.instance.pk %}Etiket Düzenle{% else %}Yeni Etiket{% endif %} — Dispatch
+    {% if form.instance.pk %}{% trans "Etiket Düzenle" %}{% else %}{% trans "Yeni Etiket" %}{% endif %} — Dispatch
 {% endblock %}
 
 {% block content %}

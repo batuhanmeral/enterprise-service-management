@@ -78,10 +78,12 @@ class DepartmentDetailView(LoginRequiredMixin, DetailView):
             role__in=[Role.AGENT, Role.EMPLOYEE],
         ).order_by('role', 'first_name', 'last_name')
 
+        # Etiketler enum'dan alınır: burada kopyalamak hem çeviriyi atlıyor
+        # hem de Role ile sessizce ayrışma riski yaratıyordu.
         context['role_choices'] = [
-            (Role.EMPLOYEE, 'Çalışan'),
-            (Role.AGENT, 'Personel'),
-            (Role.MANAGER, 'Yönetici'),
+            (Role.EMPLOYEE, Role.EMPLOYEE.label),
+            (Role.AGENT, Role.AGENT.label),
+            (Role.MANAGER, Role.MANAGER.label),
         ]
         context['available_personnel'] = User.objects.filter(
             role=Role.AGENT,

@@ -3,16 +3,17 @@ from datetime import time, timedelta
 from django.conf import settings
 from django.db import models, transaction
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from .validators import validate_file_extension, validate_file_size, validate_file_content
 
 
 class Status(models.TextChoices):
-    OPEN = 'OPEN', 'Açık'
-    IN_PROGRESS = 'IN_PROGRESS', 'İşlemde'
-    RESOLVED = 'RESOLVED', 'Çözüldü'
-    CLOSED = 'CLOSED', 'Kapandı'
-    ESCALATED = 'ESCALATED', 'Eskalasyon'
+    OPEN = 'OPEN', _('Açık')
+    IN_PROGRESS = 'IN_PROGRESS', _('İşlemde')
+    RESOLVED = 'RESOLVED', _('Çözüldü')
+    CLOSED = 'CLOSED', _('Kapandı')
+    ESCALATED = 'ESCALATED', _('Eskalasyon')
 
 
 MAX_REOPENS = 2
@@ -22,10 +23,10 @@ MAX_ACTIVE_TICKETS_PER_AGENT = 5
 
 
 class Priority(models.TextChoices):
-    LOW = 'LOW', 'Düşük'
-    NORMAL = 'NORMAL', 'Normal'
-    HIGH = 'HIGH', 'Yüksek'
-    URGENT = 'URGENT', 'Acil'
+    LOW = 'LOW', _('Düşük')
+    NORMAL = 'NORMAL', _('Normal')
+    HIGH = 'HIGH', _('Yüksek')
+    URGENT = 'URGENT', _('Acil')
 
 
 SLA_HOURS = {

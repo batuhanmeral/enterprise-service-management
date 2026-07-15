@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from .validators import (
     validate_avatar_extension,
@@ -10,10 +11,10 @@ from .validators import (
 
 
 class Role(models.TextChoices):
-    EMPLOYEE = 'EMPLOYEE', 'Çalışan'
-    AGENT = 'AGENT', 'Personel'
-    MANAGER = 'MANAGER', 'Yönetici'
-    ADMIN = 'ADMIN', 'Admin'
+    EMPLOYEE = 'EMPLOYEE', _('Çalışan')
+    AGENT = 'AGENT', _('Personel')
+    MANAGER = 'MANAGER', _('Yönetici')
+    ADMIN = 'ADMIN', _('Admin')
 
 
 class User(AbstractUser):
@@ -90,12 +91,12 @@ class User(AbstractUser):
 
 class AuditLog(models.Model):
     class Category(models.TextChoices):
-        TICKET = 'TICKET', 'Bilet'
-        USER = 'USER', 'Kullanıcı'
-        DEPARTMENT = 'DEPARTMENT', 'Departman'
-        CATEGORY = 'CATEGORY', 'Kategori'
-        AUTH = 'AUTH', 'Kimlik Doğrulama'
-        OTHER = 'OTHER', 'Diğer'
+        TICKET = 'TICKET', _('Bilet')
+        USER = 'USER', _('Kullanıcı')
+        DEPARTMENT = 'DEPARTMENT', _('Departman')
+        CATEGORY = 'CATEGORY', _('Kategori')
+        AUTH = 'AUTH', _('Kimlik Doğrulama')
+        OTHER = 'OTHER', _('Diğer')
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,

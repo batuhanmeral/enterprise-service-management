@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block title %}
-    {% if profile_user %}Kullanıcı Düzenle{% else %}Yeni Kullanıcı{% endif %} — Dispatch
+    {% if profile_user %}{% trans "Kullanıcı Düzenle" %}{% else %}{% trans "Yeni Kullanıcı" %}{% endif %} — Dispatch
 {% endblock %}
 
 {% block content %}

@@ -3,10 +3,11 @@ from zoneinfo import ZoneInfo
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import translation
 
 from departments.models import Department
 from identity.models import Role, User
-from tickets.models import Priority, Ticket
+from tickets.models import Priority, Status, Ticket
 
 TZ = ZoneInfo('Europe/Istanbul')
 
@@ -81,3 +82,55 @@ class ReportDashboardFrtTests(TestCase):
         context = self.dashboard()
         self.assertEqual(context['frt_count'], 0)
         self.assertIsNone(context['frt_compliance_pct'])
+
+
+class ExportLanguageTests(TestCase):
+    """Export'lar dil değişince bozulmamalı.
+
+    Özet sayımları bir zamanlar görünen durum etiketini Türkçe sabitlerle
+    karşılaştırıyordu; İngilizce arayüzde tüm sayımlar sessizce sıfırlanıyordu.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.dept = Department.objects.create(name='BT')
+        cls.admin = User.objects.create_user('admin', password='x', role=Role.ADMIN)
+        cls.employee = User.objects.create_user(
+            'calisan', password='x', role=Role.EMPLOYEE, department=cls.dept,
+        )
+        for status in (Status.OPEN, Status.OPEN, Status.IN_PROGRESS, Status.CLOSED):
+            t = Ticket.objects.create(
+                subject='Test', message='x', sender=cls.employee, department=cls.dept,
+            )
+            Ticket.objects.filter(pk=t.pk).update(status=status)
+
+    def test_export_rows_carry_raw_status_code(self):
+        from reports.views import _get_ticket_export_data
+        for lang in ('tr', 'en'):
+            with self.subTest(lang=lang), translation.override(lang):
+                rows = _get_ticket_export_data(self.admin, {})
+                codes = sorted(r['status_code'] for r in rows)
+                self.assertEqual(
+                    codes,
+                    sorted([Status.OPEN, Status.OPEN, Status.IN_PROGRESS, Status.CLOSED]),
+                )
+
+    def test_pdf_summary_counts_survive_english(self):
+        self.client.force_login(self.admin)
+        for lang in ('tr', 'en'):
+            with self.subTest(lang=lang), translation.override(lang):
+                response = self.client.get(
+                    reverse('reports:export_pdf'), HTTP_ACCEPT_LANGUAGE=lang,
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Type'], 'application/pdf')
+
+    def test_status_labels_translate(self):
+        with translation.override('en'):
+            self.assertEqual(str(Status.OPEN.label), 'Open')
+            self.assertEqual(str(Priority.URGENT.label), 'Urgent')
+            self.assertEqual(str(Role.AGENT.label), 'Agent')
+        with translation.override('tr'):
+            self.assertEqual(str(Status.OPEN.label), 'Açık')
+            self.assertEqual(str(Priority.URGENT.label), 'Acil')
+            self.assertEqual(str(Role.AGENT.label), 'Personel')

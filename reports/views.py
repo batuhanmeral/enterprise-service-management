@@ -2,7 +2,7 @@ import csv
 import io
 import os
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, time, timedelta
 
 from django.contrib.auth.decorators import login_required
@@ -596,6 +596,8 @@ def _get_ticket_export_data(user, request_get):
         rows.append({
             'id': t.pk,
             'subject': t.subject,
+            # Gorunen etiket cevrilebilir; sayim icin ham kod tasiniyor.
+            'status_code': t.status,
             'status': t.get_status_display(),
             'priority': t.get_priority_display(),
             'department': t.department.name if t.department else '—',
@@ -692,11 +694,12 @@ def export_pdf(request):
     rows = _get_ticket_export_data(request.user, request.GET)
 
     total = len(rows)
-    open_count = sum(1 for r in rows if r['status'] == 'Açık')
-    in_progress_count = sum(1 for r in rows if r['status'] == 'İşlemde')
-    resolved_count = sum(1 for r in rows if r['status'] == 'Çözüldü')
-    closed_count = sum(1 for r in rows if r['status'] == 'Kapandı')
-    escalated_count = sum(1 for r in rows if r['status'] == 'Eskalasyon')
+    counts = Counter(r['status_code'] for r in rows)
+    open_count = counts[Status.OPEN]
+    in_progress_count = counts[Status.IN_PROGRESS]
+    resolved_count = counts[Status.RESOLVED]
+    closed_count = counts[Status.CLOSED]
+    escalated_count = counts[Status.ESCALATED]
 
     html = render_to_string('reports/export_pdf.html', {
         'rows': rows,

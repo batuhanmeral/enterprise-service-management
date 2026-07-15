@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}Biletler — Dispatch{% endblock %}
+{% block title %}{% trans "Biletler" %} — Dispatch{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -470,9 +470,15 @@ function confirmTicketBulk() {
     };
     let label = labelMap[action];
     if (!label && action.startsWith('priority:')) {
-        label = '{% trans "önceliğini" %} "' + select.options[select.selectedIndex].text.replace('→ ', '') + '" {% trans "yapmak" %}';
+        // Tek parca msgid: cumle parcalarini birlestirmek sozcuk sirasi farkli
+        // dillerde cevrilemez hale getiriyordu.
+        const p = select.options[select.selectedIndex].text.replace('→ ', '');
+        label = '{% trans "önceliğini __P__ yapmak" %}'.replace('__P__', '"' + p + '"');
     }
-    return confirm(`${n} {% trans "bileti" %} ${label} {% trans "istediğinize emin misiniz?" %}`);
+    return confirm(
+        '{% trans "__N__ bileti __A__ istediğinize emin misiniz?" %}'
+            .replace('__N__', n).replace('__A__', label)
+    );
 }
 </script>
 {% endblock %}
