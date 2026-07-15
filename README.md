@@ -42,7 +42,8 @@ docker compose up -d --build
 **Manual setup** (requires Python ≥ 3.13 and PostgreSQL; PDF export needs [WeasyPrint's system libraries](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation)):
 
 ```bash
-git clone https://github.com/batuhanmeral/Dispatch.git && cd Dispatch
+git clone https://github.com/batuhanmeral/enterprise-service-management.git
+cd enterprise-service-management
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env              # fill in SECRET_KEY, ALLOWED_HOSTS, DB_*
