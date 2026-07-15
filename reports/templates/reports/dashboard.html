@@ -174,9 +174,42 @@
         </div>
     </div>
 
-    {# SLA / Reopen / CSAT kartları #}
+    {# İlk Yanıt / SLA / Reopen / CSAT kartları #}
     <div class="row g-3 mb-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2"><i class="bi bi-reply me-1"></i>{% trans "Ort. İlk Yanıt" %}</h6>
+                    {% if frt_avg_label %}
+                        <div class="display-6 fw-bold">{{ frt_avg_label }}</div>
+                        <div class="small text-muted mt-1">
+                            {% blocktrans with n=frt_count %}{{ n }} yanıtlanmış bilet{% endblocktrans %}
+                        </div>
+                        {% if frt_compliance_pct != None %}
+                            <div class="small mt-1">
+                                {% trans "Hedef uyumu" %}:
+                                <span class="fw-medium {% if frt_compliance_pct >= 90 %}text-success{% elif frt_compliance_pct >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                                    %{{ frt_compliance_pct|floatformat:1 }}
+                                </span>
+                            </div>
+                        {% endif %}
+                        {% if frt_awaiting_breached %}
+                            <div class="small mt-1">
+                                <a href="{% url 'tickets:ticket_list' %}?{{ base_query }}&awaiting_response=1"
+                                   class="text-danger text-decoration-none">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    {% blocktrans with n=frt_awaiting_breached %}{{ n }} bilet hedefi aştı, hâlâ yanıtsız{% endblocktrans %}
+                                    <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted mb-0">{% trans "Henüz yanıtlanmış bilet yok" %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h6 class="text-muted mb-2"><i class="bi bi-stopwatch me-1"></i>{% trans "SLA Uyumu" %}</h6>
@@ -197,7 +230,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h6 class="text-muted mb-2"><i class="bi bi-arrow-counterclockwise me-1"></i>{% trans "Tekrar Açılma Oranı" %}</h6>
@@ -217,7 +250,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h6 class="text-muted mb-2"><i class="bi bi-star-fill text-warning me-1"></i>{% trans "Memnuniyet (CSAT)" %}</h6>
@@ -323,6 +356,7 @@
                             <th class="text-center">{% trans "Yeniden Açılma" %}</th>
                             <th class="text-center">{% trans "Eskalasyon" %}</th>
                             <th class="text-center">{% trans "Reopen %" %}</th>
+                            <th class="text-center">{% trans "Ort. İlk Yanıt" %}</th>
                             <th class="text-center">{% trans "Ort. Çözüm" %}</th>
                             <th class="text-center">{% trans "SLA %" %}</th>
                             <th class="text-center">{% trans "CSAT" %}</th>
@@ -347,6 +381,9 @@
                                 {% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
                             <td class="text-center">
+                                {% if p.avg_frt_label %}{{ p.avg_frt_label }}{% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td class="text-center">
                                 {% if p.avg_hours != None %}{{ p.avg_hours }} {% trans "saat" %}{% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
                             <td class="text-center">
@@ -359,7 +396,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="9" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
+                        <tr><td colspan="10" class="text-center text-muted">{% trans "Veri yok" %}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

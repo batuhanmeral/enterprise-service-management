@@ -28,7 +28,10 @@ from weasyprint import HTML
 from departments.models import Department
 from identity.models import Role, User
 from identity.views import ManagerOrAdminRequiredMixin
-from tickets.models import Status, Ticket
+from tickets.models import (
+    FIRST_RESPONSE_SLA_HOURS, Priority, Status, Ticket,
+    add_business_hours, business_seconds_between, format_duration_short,
+)
 
 from .filters import ReportFilterForm
 
@@ -123,6 +126,53 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
         context['reopen_rate_pct'] = (
             round(reopened_count / total * 100, 1) if total else None
         )
+
+        # --- İlk yanıt süresi (FRT) ---------------------------------------
+        # İş saati bazlı olduğu için DB'de tek ifadeyle hesaplanamıyor; SLA
+        # uyum bloğuyla aynı yaklaşımı izleyip satırları Python'da topluyoruz.
+        frt_total_seconds = 0.0
+        frt_count = 0
+        frt_breach = 0
+        agent_frt_seconds = defaultdict(float)
+        agent_frt_count = defaultdict(int)
+        for row in ticket_qs.filter(first_response_at__isnull=False).values(
+            'created_at', 'first_response_at', 'priority', 'assigned_to_id'
+        ):
+            secs = business_seconds_between(row['created_at'], row['first_response_at'])
+            frt_total_seconds += secs
+            frt_count += 1
+            target_hours = FIRST_RESPONSE_SLA_HOURS.get(
+                row['priority'], FIRST_RESPONSE_SLA_HOURS[Priority.NORMAL]
+            )
+            if row['first_response_at'] > add_business_hours(row['created_at'], target_hours):
+                frt_breach += 1
+            aid = row['assigned_to_id']
+            if aid is not None:
+                agent_frt_seconds[aid] += secs
+                agent_frt_count[aid] += 1
+
+        context['frt_count'] = frt_count
+        context['frt_breach'] = frt_breach
+        context['frt_avg_label'] = (
+            format_duration_short(frt_total_seconds / frt_count) if frt_count else None
+        )
+        context['frt_compliance_pct'] = (
+            round((frt_count - frt_breach) / frt_count * 100, 1) if frt_count else None
+        )
+        # Henüz yanıtlanmamış ve hedefi geçmiş biletler — aksiyon gerektirir.
+        # values() ile dönüyoruz: model örneği kurup first_response_breached
+        # okumak deferred alan yüzünden satır başına bir sorgu açardı.
+        now = timezone.now()
+        awaiting_breached = 0
+        for row in ticket_qs.filter(first_response_at__isnull=True).exclude(
+            status__in=[Status.CLOSED, Status.ESCALATED]
+        ).values('created_at', 'priority'):
+            target_hours = FIRST_RESPONSE_SLA_HOURS.get(
+                row['priority'], FIRST_RESPONSE_SLA_HOURS[Priority.NORMAL]
+            )
+            if now > add_business_hours(row['created_at'], target_hours):
+                awaiting_breached += 1
+        context['frt_awaiting_breached'] = awaiting_breached
 
         csat_qs = ticket_qs.filter(status=Status.CLOSED, csat_rating__isnull=False)
         csat_count = csat_qs.count()
@@ -264,10 +314,14 @@ class ReportDashboardView(ManagerOrAdminRequiredMixin, TemplateView):
             reopened = row.get('reopened', 0)
             sla_t = agent_sla_total.get(u.pk, 0)
             sla_b = agent_sla_breach.get(u.pk, 0)
+            frt_n = agent_frt_count.get(u.pk, 0)
             personnel.append({
                 'pk': u.pk,
                 'name': u.get_full_name() or u.username,
                 'department': u.department.name if u.department else '—',
+                'avg_frt_label': (
+                    format_duration_short(agent_frt_seconds[u.pk] / frt_n) if frt_n else None
+                ),
                 'active': row.get('active', 0),
                 'resolved': row.get('resolved', 0),
                 'closed': row.get('closed', 0),
@@ -550,6 +604,10 @@ def _get_ticket_export_data(user, request_get):
             'sender': (t.sender.get_full_name() or t.sender.username) if t.sender else '—',
             'assigned_to': (t.assigned_to.get_full_name() or t.assigned_to.username) if t.assigned_to else '—',
             'created_at': t.created_at.strftime('%d.%m.%Y %H:%M'),
+            'first_response_at': (
+                t.first_response_at.strftime('%d.%m.%Y %H:%M') if t.first_response_at else '—'
+            ),
+            'first_response': t.first_response_label,
             'closed_at': t.closed_at.strftime('%d.%m.%Y %H:%M') if t.closed_at else '—',
             'resolution_note': t.resolution_note or '',
         })
@@ -558,7 +616,8 @@ def _get_ticket_export_data(user, request_get):
 
 EXPORT_HEADERS = [
     'ID', 'Konu', 'Durum', 'Öncelik', 'Departman', 'Kategori', 'Etiketler',
-    'Talep Sahibi', 'Üstlenen Personel', 'Oluşturulma', 'Kapatılma', 'Çözüm Notu',
+    'Talep Sahibi', 'Üstlenen Personel', 'Oluşturulma', 'İlk Yanıt Tarihi',
+    'İlk Yanıt Süresi', 'Kapatılma', 'Çözüm Notu',
 ]
 
 
@@ -576,7 +635,8 @@ def export_csv(request):
         writer.writerow([
             r['id'], r['subject'], r['status'], r['priority'],
             r['department'], r['category'], r['tags'], r['sender'], r['assigned_to'],
-            r['created_at'], r['closed_at'], r['resolution_note'],
+            r['created_at'], r['first_response_at'], r['first_response'],
+            r['closed_at'], r['resolution_note'],
         ])
     return response
 
@@ -602,13 +662,14 @@ def export_excel(request):
 
     keys = [
         'id', 'subject', 'status', 'priority', 'department', 'category', 'tags',
-        'sender', 'assigned_to', 'created_at', 'closed_at', 'resolution_note',
+        'sender', 'assigned_to', 'created_at', 'first_response_at',
+        'first_response', 'closed_at', 'resolution_note',
     ]
     for row_idx, r in enumerate(rows, 2):
         for col_idx, key in enumerate(keys, 1):
             ws.cell(row=row_idx, column=col_idx, value=r[key])
 
-    col_widths = [6, 30, 10, 10, 18, 18, 20, 20, 20, 18, 18, 40]
+    col_widths = [6, 30, 10, 10, 18, 18, 20, 20, 20, 18, 18, 16, 18, 40]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
