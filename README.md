@@ -2,7 +2,7 @@
 
 > Track internal support requests from open to close — with role-based access, business-hours SLAs, auto-assignment, and full TR/EN support, all in a hardened, server-rendered Django app.
 
-Dispatch is a Django help-desk platform that takes an internal support request from open to close. Employees raise tickets, the system routes each one to the right department and auto-assigns an available agent, and managers watch the whole pipeline against business-hours SLAs — with escalation, satisfaction ratings, and CSV/Excel/PDF reporting built in.
+Dispatch is a Django help-desk platform that takes an internal support request from open to close. Employees raise tickets, the system routes each one to the right department and auto-assigns an available agent, and managers watch the whole pipeline against business-hours SLAs — with escalation, first-response targets, satisfaction ratings, and CSV/Excel/PDF reporting built in.
 
 ## Features
 
@@ -12,9 +12,9 @@ Dispatch is a Django help-desk platform that takes an internal support request f
 - **Role-based access** — Employee, Agent, Manager, Admin; each role sees and does only what it should.
 - **Security hardening** — brute-force lockout (django-axes), uploads validated by extension, size, and real content, CSRF on every form, and auto-enabled HTTPS redirect, HSTS, and `Secure`/`HttpOnly` cookies in production.
 - **Business-hours SLAs** — due dates from working hours (Mon–Fri, 09:00–18:00) per priority (Urgent 4h / High 24h / Normal 72h / Low 168h), with overdue tracking and early warnings.
-- **First-response tracking (FRT)** — every ticket is stamped the moment an agent first replies, measured in *business* hours against a per-priority target (Urgent 1h / High 4h / Normal 8h / Low 24h). The dashboard reports the average, target compliance, and how many tickets are still sitting unanswered past their target.
-- **Internal notes** — agents and managers can discuss a ticket in-thread without the requester ever seeing it; notes are filtered out server-side, never counted as a first response, and never notify the requester.
-- **Canned responses** — reusable reply templates, global or scoped to a department, with placeholders (`{{talep_sahibi}}`, `{{bilet_kodu}}`, …) filled in from the ticket. Usage is counted so you can see which templates actually earn their keep.
+- **First-response tracking (FRT)** — stamped the moment an agent first replies, measured in *business* hours against a per-priority target (Urgent 1h / High 4h / Normal 8h / Low 24h), with average, target compliance, and still-unanswered counts on the dashboard.
+- **Internal notes** — agents discuss a ticket in-thread without the requester ever seeing it; filtered out server-side, never counted as a first response, never sent to the requester.
+- **Canned responses** — reusable reply templates, global or per department, with placeholders (`{{talep_sahibi}}`, `{{bilet_kodu}}`, …) filled in from the ticket, and usage counted per template.
 - **Collaboration** — threaded comments, file attachments, color-coded tags, and a full per-ticket audit trail.
 - **In-app notifications** — live unread badge with alerts for assignments, status changes, and SLA warnings.
 - **Reporting** — metrics dashboard with one-click **CSV / Excel / PDF** export.
@@ -48,6 +48,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env              # fill in SECRET_KEY, ALLOWED_HOSTS, DB_*
 python manage.py migrate && python manage.py createsuperuser
+python manage.py seed_demo        # optional demo data — admin / admin123
 python manage.py runserver        # http://localhost:8000
 ```
 
@@ -57,7 +58,7 @@ python manage.py runserver        # http://localhost:8000
 | --- | --- |
 | `identity` | User model, authentication, roles, audit logging |
 | `departments` | Departments, categories, auto-assignment config |
-| `tickets` | Ticket lifecycle, SLAs, first-response tracking, assignment, comments, internal notes, canned responses, attachments, history |
+| `tickets` | Ticket lifecycle, SLAs, first response, assignment, comments, internal notes, canned responses, attachments, history |
 | `notifications` | In-app notifications and the unread-count badge |
 | `reports` | Dashboard metrics and CSV / Excel / PDF exports |
 | `config` | Project settings, URLs, role-based landing dashboard |
