@@ -52,6 +52,22 @@ python manage.py seed_demo        # optional demo data — admin / admin123
 python manage.py runserver        # http://localhost:8000
 ```
 
+## Testing
+
+The suite uses Django's test runner against PostgreSQL. Django creates and drops a throwaway `test_<DB_NAME>` database, so the `DB_*` user in `.env` needs permission to create databases.
+
+```bash
+python manage.py test                 # whole suite
+python manage.py test tickets         # one app
+```
+
+| Area | Covered |
+| --- | --- |
+| `tickets` | Business-hours SLA math, SLA due dates, auto-assignment, lifecycle transitions, first-response stamping, internal-note visibility, canned responses |
+| `reports` | First-response metrics on the dashboard, export data and PDF summaries in both TR and EN |
+
+[GitHub Actions](.github/workflows/ci.yml) runs `manage.py check`, a missing-migration check (`makemigrations --check`) and the full suite on Python 3.13 + PostgreSQL 17 for every push to `main` and every pull request.
+
 ## Project Structure
 
 | App | Responsibility |
